@@ -80,4 +80,6 @@ setup
 publish "$infile"
 
 # TODO
-# How to handle nav bar changes?
+# - How to implement categories?
+# - How to handle nav bar changes?
+# - Write about page
