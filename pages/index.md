@@ -1,0 +1,2 @@
+# Notes
+I don't usually follow recipes to the letter, and after making a dish a few times, I will have some ideas for how to adapt it to what equipment or ingredients I have available. That means the vast majority of the recipes I've posted here are not authentic in any way. To make it easier to find things, I have grouped them roughly according to region, but take these with a grain of salt---I don't actually have a clue where most of these things are from.
