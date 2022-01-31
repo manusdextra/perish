@@ -1,14 +1,10 @@
 #!/bin/sh
 #
 # Static Site Generator
-#
-# TODO
-# How to handle nav bar changes?
-# copy folder structure? Set up "categories" page?
 
 # declare locations
 rootdir=~/blog
-sourcedir="$rootdir/pages"
+sourcedir="$rootdir/pages/recipes"
 destdir="$rootdir/output"
 logfile="$rootdir/logfile"
 
@@ -49,22 +45,6 @@ update () {
     exit 0
 }
 
-publish () {
-    checksum=$(sha1sum "$1" | awk '{print $1}')
-    if [ "$rebuild" == "" ]; then
-        grep -q -F "$checksum" < "$logfile" && return
-    fi
-    printf "publishing %s\n" "$1"
-    title=$(awk '/^# /' < "$1" | tr -d '# ' | tr [:upper:] [:lower:])
-    test "$1" == "$sourcedir/index.md" && title="index"
-    outfile="$destdir/$title.html"
-    cat "$rootdir/templates/prepend.html" > "$outfile"
-    lowdown "$1" >> "$outfile"
-    cat "$rootdir/templates/append.html" >> "$outfile"
-    # update log file
-    printf "%s %s %s\n" $(date +%s) $checksum $title >> $logfile
-}
-
 cleanup () {
     # update logfile
     [ -e "$logfile.old" ] && diff "$logfile" "$logfile.old" >/dev/null && exit 0
@@ -74,13 +54,30 @@ cleanup () {
     # update index.html with list of pages
 }
 
-main () {
-    setup
-    [ $# -eq 0 ] || [ $# -gt 1 ] && usage
-    [ "$1" == "update" ] && update
-    [ "$1" == "rebuild" ] && rebuild="yes" && update
-    [ -f "$1" ] && infile="$1" || bail "file not found"
-    publish "$infile" && cleanup
+check (){
+    # this is duplicated later, can that be avoided?
+    checksum=$(sha1sum "$1" | awk '{print $1}')
+    grep -q -F "$checksum" < "$logfile" \
+        && return
 }
 
-main "$@"
+publish () {
+    check "$1" || printf "publishing %s\n" "$1"
+    title=$(awk '/^# /' < "$1" | tr -d '# ' | tr [:upper:] [:lower:])
+    outfile="$destdir/$title.html"
+    cat "$rootdir/templates/prepend.html" > "$outfile"
+    lowdown "$1" >> "$outfile"
+    cat "$rootdir/templates/append.html" >> "$outfile"
+    # update log file
+    checksum=$(sha1sum "$1" | awk '{print $1}')
+    printf "%s %s %s\n" $(date +%s) $checksum $title >> $logfile
+}
+
+setup
+[ $# -eq 0 ] || [ $# -gt 1 ] && usage
+[ "$1" == "update" ] && update
+[ -f "$1" ] && infile="$1" || bail "file not found"
+publish "$infile"
+
+# TODO
+# How to handle nav bar changes?
