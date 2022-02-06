@@ -5,7 +5,7 @@ Takes article in markdown, places it inside HTML template and updates index.
 """
 
 import argparse
-import sys
+from pathlib import Path
 
 parser = argparse.ArgumentParser(
         description='Static Site Generator')
@@ -21,6 +21,16 @@ group.add_argument(
         help='re-build pages and index')
 args = parser.parse_args()
 
+class Config:
+    def __init__(self):
+        self.rootdir = Path.cwd()
+        self.sourcedir = self.rootdir / 'pages' / 'recipes'
+        self.destdir = self.rootdir / 'output'
+        self.logfile = self.rootdir / 'logfile'
+        print('Source found') if self.sourcedir.exists() else self.sourcedir.mkdir(parents=True)
+        print('Destination found') if self.destdir.exists() else self.destdir.mkdir(parents=True)
+        print('Logfile found') if self.logfile.exists() else self.logfile.touch()
+
 
 def main():
     if args.infile:
@@ -28,8 +38,9 @@ def main():
     elif args.update:
         print('updating…')
     else:
-        print('okay whatever man')
+        print('nothing to do. exiting…')
 
 
 if __name__ == '__main__':
+    config = Config()
     main()
