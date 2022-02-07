@@ -5,6 +5,8 @@ Takes article in markdown, places it inside HTML template and updates index.
 """
 
 import argparse
+import hashlib
+import time
 from pathlib import Path
 
 class Config:
@@ -37,7 +39,7 @@ def getargs():
     group.add_argument(
         'infile',
         nargs='?',
-        type=argparse.FileType('r'),
+        type=argparse.FileType('r', encoding='UTF-8'),
         help='publish only this file'
     )
     group.add_argument(
@@ -49,25 +51,24 @@ def getargs():
     return args
 
 
-def hash():
+def hash(file):
     """
-    TODO:
     calculate the SHA-1 sum of incoming document
     """
-    pass
+    h = hashlib.sha1()
+    h.update(file.read().encode('utf-8'))
+    return h.hexdigest()
 
 def logread(pattern):
-    if pattern in args.logfile:
-        return True
+    with config.logfile.open() as log:
+        if pattern in log:
+            return True
     return False
 
-def logwrite():
-    """
-    TODO:
-    write the filename, date and SHA-1 sum of processed document
-    to the logfile
-    """
-    pass
+def logwrite(file):
+    entry = f'{int(time.time())} {hash(file)} {file.name}\n'
+    with config.logfile.open(mode='a') as log:
+        log.write(entry)
 
 def publish():
     """
@@ -96,7 +97,7 @@ if __name__ == '__main__':
     config = Config()
     args = getargs()
     if args.infile:
-        publish()
+        logwrite(args.infile)
     elif args.update:
         update()
     else:
