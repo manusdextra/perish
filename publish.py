@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" Static Site Generator.
+"""
+Static Site Generator.
 Takes article in markdown, places it inside HTML template and updates index.
 """
 
@@ -10,11 +11,14 @@ import time
 from pathlib import Path
 
 class Config:
-    """ check for existence of directories / files and create them if necessary """
+    """ 
+    check for existence of directories / files and create them if necessary
+    """
     def __init__(self):
         """
         TODO:
-        check for existence (and integrity) of templates
+        check for existence (and integrity) of templates, if these have been changed
+        everything needs to be re-built
         """
         self.rootdir = Path.cwd()
         self.sourcedir = self.rootdir / 'pages' / 'recipes'
@@ -60,12 +64,20 @@ def hash(file):
     return h.hexdigest()
 
 def logread(pattern):
+    """
+    check if the file has been handled before
+    """
     with config.logfile.open() as log:
         if pattern in log:
             return True
     return False
 
 def logwrite(file):
+    """
+    write changes to logfile
+    TODO: think about optimising this. Is it worth it setting up a class and
+    having any infile create a new instance of it with hash, title etc?
+    """
     entry = f'{int(time.time())} {hash(file)} {file.name}\n'
     with config.logfile.open(mode='a') as log:
         log.write(entry)
