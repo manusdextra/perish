@@ -91,7 +91,7 @@ def publish():
     - prepend & append templates
     - log the file
     """
-    print('publishing {}…'.format(args.infile.name))
+    narrate('publishing {}…'.format(args.infile.name))
 
 def update():
     """
@@ -101,17 +101,17 @@ def update():
     if their checksums have changed
     - publish the new ones
     """
-    print('updating…')
+    narrate('updating…')
     # check if the templates have changed
-    print('checking templates…')
+    narrate('checking templates…')
     if not logread(config.template_prepend
     ) and not logread(config.template_append):
-        print('templates have been updated')
+        narrate('templates have been updated')
         logwrite(config.template_prepend)
         logwrite(config.template_append)
         rebuild()
     else:
-        print('templates OK')
+        narrate('templates OK')
 
 def rebuild():
     """
@@ -120,6 +120,12 @@ def rebuild():
     - make this undoable (how?)
     """
     pass
+
+def narrate(message):
+    """
+    Simple logger to console, to be fleshed out
+    """
+    print(f'…\t{message}')
 
 def bail(error):
     """
