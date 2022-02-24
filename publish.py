@@ -15,24 +15,21 @@ class Config:
     check for existence of directories / files and create them if necessary
     """
     def __init__(self):
-        """
-        TODO:
-        check for existence (and integrity) of templates, if these have been changed
-        everything needs to be re-built
-        """
-        self.rootdir = Path.cwd()
+        self.rootdir = Path.cwd() # this would need to be changed to make the script portable
+        self.logfile = self.rootdir / 'logfile'
+        self.templatedir = self.rootdir / 'templates'
+        self.template_prepend = self.rootdir / 'templates' / 'prepend.html'
+        self.template_append = self.rootdir / 'templates' / 'append.html'
         self.sourcedir = self.rootdir / 'pages' / 'recipes'
         self.destdir = self.rootdir / 'output'
-        self.templatedir = self.rootdir / 'templates'
-        self.logfile = self.rootdir / 'logfile'
+        if not self.logfile.exists():
+            self.logfile.touch()
+        if not self.templatedir.exists():
+            bail('no templates found')
         if not self.sourcedir.exists():
             self.sourcedir.mkdir(parents=True)
         if not self.destdir.exists():
             self.destdir.mkdir(parents=True)
-        if not self.templatedir.exists():
-            self.templatedir.mkdir(parents=True)
-        if not self.logfile.exists():
-            self.logfile.touch()
 
 def getargs():
     """ process command line arguments """
@@ -54,23 +51,25 @@ def getargs():
     args = parser.parse_args()
     return args
 
-
 def hash(file):
     """
     calculate the SHA-1 sum of incoming document
     """
     h = hashlib.sha1()
-    h.update(file.read().encode('utf-8'))
+    h.update(file.read_text().encode('utf-8'))
     return h.hexdigest()
 
-def logread(pattern):
+def logread(file):
     """
     check if the file has been handled before
     """
-    with config.logfile.open() as log:
+    pattern = hash(file)
+    with config.logfile.open() as logfile:
+        log = logfile.read()
         if pattern in log:
             return True
-    return False
+        else:
+            return False
 
 def logwrite(file):
     """
@@ -103,7 +102,30 @@ def update():
     - publish the new ones
     """
     print('updating…')
+    # check if the templates have changed
+    print('checking templates…')
+    if not logread(config.template_prepend
+    ) and not logread(config.template_append):
+        print('templates have been updated')
+        logwrite(config.template_prepend)
+        logwrite(config.template_append)
+        rebuild()
+    else:
+        print('templates OK')
 
+def rebuild():
+    """
+    - re-do every single file
+    - potentially delete logfile and create new one
+    - make this undoable (how?)
+    """
+    pass
+
+def bail(error):
+    """
+    Print error message and exit
+    """
+    print(f'ERROR:\t{error}\n')
 
 if __name__ == '__main__':
     config = Config()
@@ -113,4 +135,4 @@ if __name__ == '__main__':
     elif args.update:
         update()
     else:
-        print('nothing to do. exiting…')
+        bail('nothing to do')
