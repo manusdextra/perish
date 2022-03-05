@@ -8,6 +8,7 @@ Takes article in markdown, places it inside HTML template and updates index.
 import argparse
 import hashlib
 import time
+import re
 from pathlib import Path
 
 class Config:
@@ -56,7 +57,7 @@ def hash(file):
     calculate the SHA-1 sum of incoming document
     """
     h = hashlib.sha1()
-    h.update(file.read_text().encode('utf-8'))
+    h.update(file.name.encode('utf-8'))
     return h.hexdigest()
 
 def logread(file):
@@ -81,25 +82,30 @@ def logwrite(file):
     with config.logfile.open(mode='a') as log:
         log.write(entry)
 
-def publish():
+def publish(file):
     """
     TODO:
-    - extract title
-    - calculate checksum of markdown document
-    - check logfile for checksum
-    - convert markdown to html
-    - prepend & append templates
-    - log the file
+    - [x] extract title
+    - [x] calculate checksum of markdown document
+    - [x] check logfile for checksum
+    - [ ] convert markdown to html
+    - [ ] prepend & append templates
+    - [ ] log the file
     """
-    narrate('publishing {}…'.format(args.infile.name))
+    title = re.search(r"^# *(\w*)\n", file.readline()).group(1)
+    narrate("checking log…")
+    if not logread(file):
+        narrate(f'publishing {title}…')
+    else:
+        narrate(f"{title} found in log, exiting…")
 
 def update():
     """
     TODO:
-    - scan sourcedir for files
-    - check logfile for these filenames and see
+    - [ ] scan sourcedir for files
+    - [ ] check logfile for these filenames and see
     if their checksums have changed
-    - publish the new ones
+    - [ ] publish the new ones
     """
     narrate('updating…')
     # check if the templates have changed
@@ -137,7 +143,7 @@ if __name__ == '__main__':
     config = Config()
     args = getargs()
     if args.infile:
-        logwrite(args.infile)
+        publish(args.infile)
     elif args.update:
         update()
     else:
