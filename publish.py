@@ -32,6 +32,51 @@ class Config:
         if not self.destdir.exists():
             self.destdir.mkdir(parents=True)
 
+class Article():
+    """
+    convert markdown to HTML
+
+    TODO:
+    - [x] extract section headings (maybe a list of sections?)
+    - [x] convert to HTML
+    - [ ] insert section tags with headings?
+    - [ ] prepend/append template
+    - [ ] decide whether or not to do log checking at this point
+    """
+    def __init__(self, file):
+        markdown = file.read()
+        file.close()
+        self.headings = re.findall(r'#{1,6} (.*)\n', markdown)
+        self.title = self.headings[0]
+        self.content = self.parse(markdown)
+
+    def parse(self, text):
+        """
+        TODO:
+        - [ ] implement images and links
+        - [ ] fix empty paragraphs (see comment at bottom)
+        - [ ] paragraphs vs newlines (empty lines should separate paragraphs)
+        """
+        narrate("parse infile…")
+        content = text
+        content = re.sub(r'__([^\n]+?)__', r'<strong>\1</strong>', content)
+        content = re.sub(r'_([^\n]+?)_', r'<em>\1</em>', content)
+        content = re.sub(r'^- (.*?$)', r'<li>\1</li>', content, flags=re.M)
+        content = re.sub(r'(<li>.*</li>)', r'<ul>\1</ul>', content, flags=re.S)
+        for i in range(6, 0, -1):
+            content = re.sub(
+                    r'^{} (.*?$)'.format('#' * i),
+                    r'<h{0}>\1</h{0}>'.format(i),
+                    content, flags=re.M)
+        content = re.sub(r'^(?!<[hlu])(.*?$)', r'<p>\1</p>', content, flags=re.M)
+        content = re.sub(r'<p></p>', r'', content) # why?
+        # narrate(f'check article:\n\n\n{content}\n\n')
+        return content
+
+    def publish(self):
+        narrate(f'publish "{self.title}"…')
+        pass
+
 def getargs():
     """ process command line arguments """
     parser = argparse.ArgumentParser(
@@ -88,16 +133,22 @@ def publish(file):
     - [x] extract title
     - [x] calculate checksum of markdown document
     - [x] check logfile for checksum
-    - [ ] convert markdown to html
+    - [x] convert markdown to html
     - [ ] prepend & append templates
     - [ ] log the file
     """
-    title = re.search(r"^# *(\w*)\n", file.readline()).group(1)
-    narrate("checking log…")
+    narrate("check log for infile…")
     if not logread(file):
-        narrate(f'publishing {title}…')
+        post = Article(file)
+        post.publish()
     else:
-        narrate(f"{title} found in log, exiting…")
+        narrate(f"File found in log, exit…")
+
+def parse():
+    """
+    Simplified markdown parser
+    """
+    pass
 
 def update():
     """
@@ -107,9 +158,9 @@ def update():
     if their checksums have changed
     - [ ] publish the new ones
     """
-    narrate('updating…')
+    narrate('update…')
     # check if the templates have changed
-    narrate('checking templates…')
+    narrate('check templates…')
     if not logread(config.template_prepend
     ) and not logread(config.template_append):
         narrate('templates have been updated')
