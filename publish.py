@@ -9,14 +9,14 @@ import argparse
 import hashlib
 import time
 import re
-from pathlib import Path
+import pathlib
 
 class Config:
     """ 
     check for existence of directories / files and create them if necessary
     """
     def __init__(self):
-        self.rootdir = Path.cwd() # this would need to be changed to make the script portable
+        self.rootdir = pathlib.Path.cwd() # this would need to be changed to make the script portable
         self.logfile = self.rootdir / 'logfile'
         self.templatedir = self.rootdir / 'templates'
         self.template_prepend = self.rootdir / 'templates' / 'prepend.html'
@@ -44,11 +44,37 @@ class Article():
     - [ ] decide whether or not to do log checking at this point
     """
     def __init__(self, file):
-        markdown = file.read()
-        file.close()
-        self.headings = re.findall(r'#{1,6} (.*)\n', markdown)
-        self.title = self.headings[0]
-        self.content = self.parse(markdown)
+        self.path = file
+        self.filename = file.name
+        with file.open() as f:
+            self.contents = f.read()
+        self.checksum = self.hash()
+        self.published = self.logread()
+
+    def hash(self):
+        """
+        calculate the SHA-1 sum of incoming document
+        """
+        h = hashlib.sha1()
+        h.update(self.contents.encode('utf-8'))
+        return h.hexdigest()
+
+    def logread(self):
+        """
+        check if the file has been handled before
+        """
+        with config.logfile.open() as logfile:
+            log = logfile.read()
+            if self.checksum in log:
+                return True
+            else:
+                return False
+
+    def logwrite(self):
+        self.published = True
+        entry = f'{int(time.time())} {self.checksum} {self.filename}\n'
+        with config.logfile.open(mode='a') as log:
+            log.write(entry)
 
     def parse(self, text):
         """
@@ -74,11 +100,42 @@ class Article():
         return content
 
     def publish(self):
-        narrate(f'publish "{self.title}"…')
-        pass
+        """
+        TODO:
+        - [x] extract title
+        - [x] calculate checksum of markdown document
+        - [x] check logfile for checksum
+        - [x] convert markdown to html
+        - [ ] prepend & append templates
+        - [ ] log the file
+        """
+        if self.path.suffix == '.md':
+            self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
+            self.title = self.headings[0]
+            self.html = self.parse(self.contents)
+        else:
+            self.html = self.contents
+            self.title = self.path
+
+        narrate("check log for infile…")
+        if not self.published:
+            narrate(f'publish "{self.title}"…')
+            output = ''
+            with config.template_prepend.open() as f:
+                output += f.read()
+            output += self.html
+            with config.template_append.open() as f:
+                output += f.read()
+            outfile = (config.destdir / self.path.stem).with_suffix('.html')
+            outfile.write_text(output, encoding='utf-8')
+            self.logwrite()
+        else:
+            bail(f"File found in log, exit…")
 
 def getargs():
-    """ process command line arguments """
+    """ 
+    process command line arguments 
+    """
     parser = argparse.ArgumentParser(
         description='Static Site Generator'
     )
@@ -86,7 +143,7 @@ def getargs():
     group.add_argument(
         'infile',
         nargs='?',
-        type=argparse.FileType('r', encoding='UTF-8'),
+        type=pathlib.Path,
         help='publish only this file'
     )
     group.add_argument(
@@ -97,62 +154,10 @@ def getargs():
     args = parser.parse_args()
     return args
 
-def hash(file):
-    """
-    calculate the SHA-1 sum of incoming document
-    """
-    h = hashlib.sha1()
-    h.update(file.name.encode('utf-8'))
-    return h.hexdigest()
-
-def logread(file):
-    """
-    check if the file has been handled before
-    """
-    pattern = hash(file)
-    with config.logfile.open() as logfile:
-        log = logfile.read()
-        if pattern in log:
-            return True
-        else:
-            return False
-
-def logwrite(file):
-    """
-    write changes to logfile
-    TODO: think about optimising this. Is it worth it setting up a class and
-    having any infile create a new instance of it with hash, title etc?
-    """
-    entry = f'{int(time.time())} {hash(file)} {file.name}\n'
-    with config.logfile.open(mode='a') as log:
-        log.write(entry)
-
-def publish(file):
-    """
-    TODO:
-    - [x] extract title
-    - [x] calculate checksum of markdown document
-    - [x] check logfile for checksum
-    - [x] convert markdown to html
-    - [ ] prepend & append templates
-    - [ ] log the file
-    """
-    narrate("check log for infile…")
-    if not logread(file):
-        post = Article(file)
-        post.publish()
-    else:
-        narrate(f"File found in log, exit…")
-
-def parse():
-    """
-    Simplified markdown parser
-    """
-    pass
-
 def update():
     """
     TODO:
+    - [ ] check templates (should these be in the Article class as well?)
     - [ ] scan sourcedir for files
     - [ ] check logfile for these filenames and see
     if their checksums have changed
@@ -161,14 +166,6 @@ def update():
     narrate('update…')
     # check if the templates have changed
     narrate('check templates…')
-    if not logread(config.template_prepend
-    ) and not logread(config.template_append):
-        narrate('templates have been updated')
-        logwrite(config.template_prepend)
-        logwrite(config.template_append)
-        rebuild()
-    else:
-        narrate('templates OK')
 
 def rebuild():
     """
@@ -194,7 +191,11 @@ if __name__ == '__main__':
     config = Config()
     args = getargs()
     if args.infile:
-        publish(args.infile)
+        post = Article(args.infile)
+        if not post.published:
+            post.publish()
+        else:
+            bail("Published already.")
     elif args.update:
         update()
     else:
