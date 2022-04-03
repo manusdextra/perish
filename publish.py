@@ -2,7 +2,10 @@
 
 """
 Static Site Generator.
-Takes article in markdown, places it inside HTML template and updates index.
+
+Goals:
+    - tags
+    - index
 """
 
 import argparse
@@ -10,6 +13,7 @@ import hashlib
 import time
 import re
 import pathlib
+import shutil
 
 class Config:
     """ 
@@ -21,7 +25,9 @@ class Config:
         self.templatedir = self.rootdir / 'templates'
         self.template_prepend = self.rootdir / 'templates' / 'prepend.html'
         self.template_append = self.rootdir / 'templates' / 'append.html'
-        self.sourcedir = self.rootdir / 'pages' / 'recipes'
+        self.sourcedir = self.rootdir / 'pages'
+        # this is a hacky workaround for the tags function below
+        self.sourcedepth = len([ x.stem for x in self.sourcedir.parents ]) + 2
         self.destdir = self.rootdir / 'output'
         if not self.logfile.exists():
             self.logfile.touch()
@@ -32,16 +38,10 @@ class Config:
         if not self.destdir.exists():
             self.destdir.mkdir(parents=True)
 
-class Article():
+class Infile():
     """
     convert markdown to HTML
 
-    TODO:
-    - [x] extract section headings (maybe a list of sections?)
-    - [x] convert to HTML
-    - [ ] insert section tags with headings?
-    - [ ] prepend/append template
-    - [ ] decide whether or not to do log checking at this point
     """
     def __init__(self, file):
         self.path = file
@@ -50,6 +50,10 @@ class Article():
             self.contents = f.read()
         self.checksum = self.hash()
         self.published = self.logread()
+        self.tags = [
+                x.stem for x
+                in self.path.parents[-config.sourcedepth::-1]
+                ]
 
     def hash(self):
         """
@@ -102,12 +106,7 @@ class Article():
     def publish(self):
         """
         TODO:
-        - [x] extract title
-        - [x] calculate checksum of markdown document
-        - [x] check logfile for checksum
-        - [x] convert markdown to html
-        - [ ] prepend & append templates
-        - [ ] log the file
+        - [ ] when pre/appending templates, use regex to insert tags?
         """
         if self.path.suffix == '.md':
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
@@ -120,6 +119,7 @@ class Article():
         narrate("check log for infile…")
         if not self.published:
             narrate(f'publish "{self.title}"…')
+            narrate(f'\t tags: {self.tags}')
             output = ''
             with config.template_prepend.open() as f:
                 output += f.read()
@@ -157,15 +157,38 @@ def getargs():
 def update():
     """
     TODO:
-    - [ ] check templates (should these be in the Article class as well?)
-    - [ ] scan sourcedir for files
-    - [ ] check logfile for these filenames and see
-    if their checksums have changed
-    - [ ] publish the new ones
     """
     narrate('update…')
     # check if the templates have changed
     narrate('check templates…')
+    for f in config.templatedir.iterdir():
+        template = Infile(f)
+        if template.path.suffix == '.css' and not template.published:
+            shutil.copyfile(f, (config.destdir / f.name))
+            narrate('updated stylesheet')
+            template.logwrite()
+        if template.path.suffix == '.html' and not template.published:
+            # rebuild()
+            narrate(f'updated {template.filename}')
+            template.logwrite()
+
+    narrate('check articles…')
+    def checkfiles(directory):
+        for f in directory.iterdir():
+            if f.is_dir():
+                checkfiles(f)
+            else:
+                article = Infile(f)
+                if not article.published:
+                    article.publish()
+    checkfiles(config.sourcedir)
+    narrate('update completed.')
+
+    """
+    a problem here is that if you undo previous changes, such as changing a single value,
+    that version of the file will still be in the log and prevent any changes being made.
+    maybe there is a way to diff the files in src and dst?
+    """
 
 def rebuild():
     """
@@ -188,15 +211,13 @@ def bail(error):
     print(f'ERROR:\t{error}\n')
 
 if __name__ == '__main__':
+    """
+    Since I want to implement a tags system which necessitates re-building
+    the whole thing every time an article is added, I might as well dispense with
+    the CLI arguments. I'll leave them in for now since they'll probs come in handy
+    later.
+    Also, the logging system needs to be overhauled to account for changes over time.
+    """
     config = Config()
     args = getargs()
-    if args.infile:
-        post = Article(args.infile)
-        if not post.published:
-            post.publish()
-        else:
-            bail("Published already.")
-    elif args.update:
-        update()
-    else:
-        bail('nothing to do')
+    update()
