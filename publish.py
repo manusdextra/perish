@@ -4,16 +4,21 @@
 Static Site Generator.
 
 Goals:
-    - tags
-    - index
+    - collect categories (maybe in Config class?)
+    - automatically create index pages. This involves the categories collected
+      and a place in the templates, potentially even some kind of jinja-like block
+      system.
+      (which needs to be properly documented)
+    - proper logger with levels of error messages
 """
 
 import argparse
 import hashlib
-import time
-import re
 import pathlib
 import shutil
+import time
+import sys
+import re
 
 class Config:
     """ 
@@ -26,13 +31,11 @@ class Config:
         self.template_prepend = self.rootdir / 'templates' / 'prepend.html'
         self.template_append = self.rootdir / 'templates' / 'append.html'
         self.sourcedir = self.rootdir / 'pages'
-        # this is a hacky workaround for the tags function below
+        # this is a hacky workaround for the categories function below
         self.sourcedepth = len([ x.stem for x in self.sourcedir.parents ]) + 2
         self.destdir = self.rootdir / 'output'
         if not self.logfile.exists():
             self.logfile.touch()
-        if not self.templatedir.exists():
-            bail('no templates found')
         if not self.sourcedir.exists():
             self.sourcedir.mkdir(parents=True)
         if not self.destdir.exists():
@@ -43,14 +46,14 @@ class Infile():
     convert markdown to HTML
 
     """
-    def __init__(self, file):
-        self.path = file
-        self.filename = file.name
-        with file.open() as f:
+    def __init__(self, path):
+        self.path = path
+        self.filename = path.name
+        with path.open() as f:
             self.contents = f.read()
         self.checksum = self.hash()
         self.published = self.logread()
-        self.tags = [
+        self.categories = [
                 x.stem for x
                 in self.path.parents[-config.sourcedepth::-1]
                 ]
@@ -66,6 +69,8 @@ class Infile():
     def logread(self):
         """
         check if the file has been handled before
+        could use re.match to look for by filename and then see which of the
+        matches also has the checksum. This way would enable rewriting history
         """
         with config.logfile.open() as logfile:
             log = logfile.read()
@@ -85,9 +90,10 @@ class Infile():
         TODO:
         - [ ] implement images and links
         - [ ] fix empty paragraphs (see comment at bottom)
+        - [ ] em dashes, ellipses and degree symbols should be valid HTML characters
         - [ ] paragraphs vs newlines (empty lines should separate paragraphs)
         """
-        narrate("parse infile…")
+        narrate("parse markdown…")
         content = text
         content = re.sub(r'__([^\n]+?)__', r'<strong>\1</strong>', content)
         content = re.sub(r'_([^\n]+?)_', r'<em>\1</em>', content)
@@ -104,11 +110,14 @@ class Infile():
         return content
 
     def publish(self):
-        """
-        TODO:
-        - [ ] when pre/appending templates, use regex to insert tags?
-        """
+        narrate(f'check log for {self.filename}…')
+        if self.published:
+            bail(f'{self.filename} found in log, skip…')
+        else:
+            narrate(f'not found in log, continue…')
+
         if self.path.suffix == '.md':
+            # is this necessary? can't I just look for the first match in the string?
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
             self.title = self.headings[0]
             self.html = self.parse(self.contents)
@@ -116,21 +125,17 @@ class Infile():
             self.html = self.contents
             self.title = self.path
 
-        narrate("check log for infile…")
-        if not self.published:
-            narrate(f'publish "{self.title}"…')
-            narrate(f'\t tags: {self.tags}')
-            output = ''
-            with config.template_prepend.open() as f:
-                output += f.read()
-            output += self.html
-            with config.template_append.open() as f:
-                output += f.read()
-            outfile = (config.destdir / self.path.stem).with_suffix('.html')
-            outfile.write_text(output, encoding='utf-8')
-            self.logwrite()
-        else:
-            bail(f"File found in log, exit…")
+        narrate(f'publish "{self.title}"…\n\t\t categories: {self.categories}')
+
+        output = ''
+        with config.template_prepend.open() as f:
+            output += f.read()
+        output += self.html
+        with config.template_append.open() as f:
+            output += f.read()
+        outfile = (config.destdir / self.path.stem).with_suffix('.html')
+        outfile.write_text(output, encoding='utf-8')
+        self.logwrite()
 
 def getargs():
     """ 
@@ -155,21 +160,27 @@ def getargs():
     return args
 
 def update():
-    """
-    TODO:
-    """
     narrate('update…')
-    # check if the templates have changed
+
     narrate('check templates…')
+    if not config.templatedir.exists():
+        bail('no templates found', True)
+    if not config.template_append.exists():
+        bail('append template not found', True)
+    if not config.template_prepend.exists():
+        bail('prepend template not found', True)
+    rebuild_needed = False
+
+    # check if the templates have changed
     for f in config.templatedir.iterdir():
         template = Infile(f)
         if template.path.suffix == '.css' and not template.published:
             shutil.copyfile(f, (config.destdir / f.name))
-            narrate('updated stylesheet')
+            narrate('updated stylesheet.')
             template.logwrite()
         if template.path.suffix == '.html' and not template.published:
-            # rebuild()
             narrate(f'updated {template.filename}')
+            rebuild_needed = True
             template.logwrite()
 
     narrate('check articles…')
@@ -179,9 +190,12 @@ def update():
                 checkfiles(f)
             else:
                 article = Infile(f)
-                if not article.published:
+                if rebuild_needed:
+                    article.publish()
+                elif not article.published:
                     article.publish()
     checkfiles(config.sourcedir)
+
     narrate('update completed.')
 
     """
@@ -190,29 +204,25 @@ def update():
     maybe there is a way to diff the files in src and dst?
     """
 
-def rebuild():
-    """
-    - re-do every single file
-    - potentially delete logfile and create new one
-    - make this undoable (how?)
-    """
-    pass
-
 def narrate(message):
     """
     Simple logger to console, to be fleshed out
     """
     print(f'…\t{message}')
 
-def bail(error):
+def bail(error, fatal=False):
     """
-    Print error message and exit
+    Print error message and exit.
+    This needs fleshed out for minor and major errors. The "fatal" flag is just a
+    workaround.
     """
     print(f'ERROR:\t{error}\n')
+    if fatal:
+        sys.exit(1)
 
 if __name__ == '__main__':
     """
-    Since I want to implement a tags system which necessitates re-building
+    Since I want to implement a categories system which necessitates re-building
     the whole thing every time an article is added, I might as well dispense with
     the CLI arguments. I'll leave them in for now since they'll probs come in handy
     later.
