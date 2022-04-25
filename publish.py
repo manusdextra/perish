@@ -57,6 +57,8 @@ class Infile():
                 x.stem for x
                 in self.path.parents[-config.sourcedepth::-1]
                 ]
+        for category in self.categories:
+            all_categories.add(category)
 
     def hash(self):
         """
@@ -133,7 +135,13 @@ class Infile():
         output += self.html
         with config.template_append.open() as f:
             output += f.read()
-        outfile = (config.destdir / self.path.stem).with_suffix('.html')
+        dest_path = config.destdir.joinpath(
+                *self.categories)
+        if not dest_path.exists():
+            dest_path.mkdir(parents=True)
+        outfile = dest_path.joinpath(self.path.stem).with_suffix('.html')
+        if not outfile.exists():
+            outfile.touch()
         outfile.write_text(output, encoding='utf-8')
         self.logwrite()
 
@@ -230,4 +238,5 @@ if __name__ == '__main__':
     """
     config = Config()
     args = getargs()
+    all_categories = set()
     update()
