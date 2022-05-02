@@ -99,14 +99,18 @@ class Infile():
         - [ ] implement images and links
         - [ ] fix empty paragraphs (see comment at bottom)
         - [ ] em dashes, ellipses and degree symbols should be valid HTML characters
+        - [ ] preserve umlaute
         - [ ] paragraphs vs newlines (empty lines should separate paragraphs)
         """
         narrate("parse markdown…")
         content = text
+        content = re.sub(r'--', r'&mdash;', content)
         content = re.sub(r'__([^\n]+?)__', r'<strong>\1</strong>', content)
         content = re.sub(r'_([^\n]+?)_', r'<em>\1</em>', content)
-        content = re.sub(r'^- (.*?$)', r'<li>\1</li>', content, flags=re.M)
-        content = re.sub(r'(<li>.*</li>)', r'<ul>\1</ul>', content, flags=re.S)
+        content = re.sub(r'^[-*] (.*?$)', r'<li>\1</li>', content, flags=re.M)
+        # this is a problem if there is more than one list in the source, in particular
+        # one "interrupted" by headlines, which will be matched due to the S flag (ignore newlines)
+        content = re.sub(r'(<li>.*</li>)(<h.>)*', r'<ul>\1</ul>', content, flags=re.S)
         for i in range(6, 0, -1):
             content = re.sub(
                     r'^{} (.*?$)'.format('#' * i),
@@ -114,7 +118,6 @@ class Infile():
                     content, flags=re.M)
         content = re.sub(r'^(?!<[hlu])(.*?$)', r'<p>\1</p>', content, flags=re.M)
         content = re.sub(r'<p></p>', r'', content) # why?
-        # narrate(f'check article:\n\n\n{content}\n\n')
         return content
 
     def publish(self):
@@ -127,8 +130,6 @@ class Infile():
         else:
             self.html = self.contents
             self.title = self.source
-
-        # narrate(f'publish "{self.title}"…\n\t\t categories: {self.categories}')
 
         output = ''
         with config.template_prefix.open() as f:
@@ -212,20 +213,17 @@ def templates_ok():
 def build_index():
     """
     TODO:
-    - [ ] check for subfolders
     - [ ] check for index page for each subfolder
     - [ ] if present, suffix .html list, else make it standalone
     """
     narrate('build index…')
     linklist = '<ul>\n'
     for f in config.destdir.rglob('*.html'):
-        linklist += f'\t<li><a href="{f.relative_to(config.destdir)}" />{f.stem}</li>\n'
+        linklist += f'\t<li><a href="{f.relative_to(config.destdir)}" />{f.stem}</a></li>\n'
     linklist += '\n</ul>'
     i = config.sourcedir.joinpath('index.md')
     index = Infile(i, index=linklist)
     index.publish()
-    # for f in config.destdir.rglob('.'):
-    #     print(f.relative_to(config.destdir))
 
 def narrate(message):
     """
@@ -244,13 +242,6 @@ def bail(error, fatal=False):
         sys.exit(1)
 
 if __name__ == '__main__':
-    """
-    Since I want to implement a categories system which necessitates re-building
-    the whole thing every time an article is added, I might as well dispense with
-    the CLI arguments. I'll leave them in for now since they'll probs come in handy
-    later.
-    Also, the logging system needs to be overhauled to account for changes over time.
-    """
     config = Config()
     args = getargs()
     all_categories = set()
