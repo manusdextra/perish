@@ -20,6 +20,7 @@ import time
 import sys
 import re
 
+
 class Config:
     """ 
     check for existence of directories / files and create them if necessary
@@ -28,12 +29,10 @@ class Config:
         self.rootdir = pathlib.Path.cwd() # this would need to be changed to make the script portable
         self.logfile = self.rootdir / 'logfile'
         self.templatedir = self.rootdir / 'templates'
-        self.template_prepend = self.rootdir / 'templates' / 'prepend.html'
-        self.template_append = self.rootdir / 'templates' / 'append.html'
+        self.template_prefix = self.rootdir / 'templates' / 'prefix.html'
+        self.template_suffix = self.rootdir / 'templates' / 'suffix.html'
         self.sourcedir = self.rootdir / 'pages'
-        # this is a hacky workaround for the categories function below
-        self.sourcedepth = len([ x.stem for x in self.sourcedir.parents ]) + 2
-        self.destdir = self.rootdir / 'output'
+        self.destdir = pathlib.Path('/data/www')
         if not self.logfile.exists():
             self.logfile.touch()
         if not self.sourcedir.exists():
@@ -41,24 +40,31 @@ class Config:
         if not self.destdir.exists():
             self.destdir.mkdir(parents=True)
 
+
 class Infile():
     """
     convert markdown to HTML
-
     """
-    def __init__(self, path):
-        self.path = path
+
+    def __init__(self, path, index=None):
+        self.source = path
         self.filename = path.name
-        with path.open() as f:
+        with self.source.open() as f:
             self.contents = f.read()
         self.checksum = self.hash()
         self.published = self.logread()
+
         self.categories = [
                 x.stem for x
-                in self.path.parents[-config.sourcedepth::-1]
+                in self.source.relative_to(config.rootdir).parents[::-1]
                 ]
+        self.destination = config.destdir.joinpath(
+                *self.categories[2::])
+
         for category in self.categories:
             all_categories.add(category)
+
+        self.index = index
 
     def hash(self):
         """
@@ -112,38 +118,35 @@ class Infile():
         return content
 
     def publish(self):
-        narrate(f'check log for {self.filename}…')
-        if self.published:
-            bail(f'{self.filename} found in log, skip…')
-        else:
-            narrate(f'not found in log, continue…')
-
-        if self.path.suffix == '.md':
+        if self.source.suffix == '.md':
             # is this necessary? can't I just look for the first match in the string?
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
             self.title = self.headings[0]
+            narrate(f'publish {self.title}…')
             self.html = self.parse(self.contents)
         else:
             self.html = self.contents
-            self.title = self.path
+            self.title = self.source
 
-        narrate(f'publish "{self.title}"…\n\t\t categories: {self.categories}')
+        # narrate(f'publish "{self.title}"…\n\t\t categories: {self.categories}')
 
         output = ''
-        with config.template_prepend.open() as f:
+        with config.template_prefix.open() as f:
             output += f.read()
         output += self.html
-        with config.template_append.open() as f:
+        if self.index:
+            output += self.index
+        with config.template_suffix.open() as f:
             output += f.read()
-        dest_path = config.destdir.joinpath(
-                *self.categories)
-        if not dest_path.exists():
-            dest_path.mkdir(parents=True)
-        outfile = dest_path.joinpath(self.path.stem).with_suffix('.html')
+
+        if not self.destination.exists():
+            self.destination.mkdir(parents=True)
+        outfile = self.destination.joinpath(self.source.stem).with_suffix('.html')
         if not outfile.exists():
             outfile.touch()
         outfile.write_text(output, encoding='utf-8')
         self.logwrite()
+
 
 def getargs():
     """ 
@@ -167,50 +170,62 @@ def getargs():
     args = parser.parse_args()
     return args
 
-def update():
-    narrate('update…')
 
-    narrate('check templates…')
+def update(directory, rebuild=False):
+    for f in directory.iterdir():
+        if f.is_dir():
+            update(f)
+        else:
+            if f.name == 'index.md':
+                continue
+            article = Infile(f)
+            if rebuild:
+                article.publish()
+            elif not article.published:
+                article.publish()
+
+
+def templates_ok():
+    narrate('check if templates exist…')
     if not config.templatedir.exists():
-        bail('no templates found', True)
-    if not config.template_append.exists():
-        bail('append template not found', True)
-    if not config.template_prepend.exists():
-        bail('prepend template not found', True)
-    rebuild_needed = False
+        bail('no templates found', fatal=True)
+    if not config.template_prefix.exists():
+        bail('prefix template not found', fatal=True)
+    if not config.template_suffix.exists():
+        bail('suffix template not found', fatal=True)
 
-    # check if the templates have changed
+    untouched = True
+    narrate('check if the templates have changed…')
     for f in config.templatedir.iterdir():
         template = Infile(f)
-        if template.path.suffix == '.css' and not template.published:
+        if template.source.suffix == '.css' and not template.published:
             shutil.copyfile(f, (config.destdir / f.name))
             narrate('updated stylesheet.')
             template.logwrite()
-        if template.path.suffix == '.html' and not template.published:
+        if template.source.suffix == '.html' and not template.published:
             narrate(f'updated {template.filename}')
-            rebuild_needed = True
+            untouched = False
             template.logwrite()
+    return untouched
 
-    narrate('check articles…')
-    def checkfiles(directory):
-        for f in directory.iterdir():
-            if f.is_dir():
-                checkfiles(f)
-            else:
-                article = Infile(f)
-                if rebuild_needed:
-                    article.publish()
-                elif not article.published:
-                    article.publish()
-    checkfiles(config.sourcedir)
 
-    narrate('update completed.')
-
+def build_index():
     """
-    a problem here is that if you undo previous changes, such as changing a single value,
-    that version of the file will still be in the log and prevent any changes being made.
-    maybe there is a way to diff the files in src and dst?
+    TODO:
+    - [ ] check for subfolders
+    - [ ] check for index page for each subfolder
+    - [ ] if present, suffix .html list, else make it standalone
     """
+    narrate('build index…')
+    linklist = '<ul>\n'
+    for f in config.destdir.rglob('*.html'):
+        linklist += f'\t<li><a href="{f.relative_to(config.destdir)}" />{f.stem}</li>\n'
+    linklist += '\n</ul>'
+    i = config.sourcedir.joinpath('index.md')
+    index = Infile(i, index=linklist)
+    index.publish()
+    # for f in config.destdir.rglob('.'):
+    #     print(f.relative_to(config.destdir))
 
 def narrate(message):
     """
@@ -239,4 +254,8 @@ if __name__ == '__main__':
     config = Config()
     args = getargs()
     all_categories = set()
-    update()
+    if templates_ok():
+        update(config.sourcedir)
+    else:
+        update(config.sourcedir, rebuild=True)
+    build_index()
