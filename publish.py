@@ -19,6 +19,7 @@ import shutil
 import time
 import sys
 import re
+from parsec import parse
 
 
 class Config:
@@ -42,9 +43,6 @@ class Config:
 
 
 class Infile():
-    """
-    convert markdown to HTML
-    """
 
     def __init__(self, path, index=None):
         self.source = path
@@ -93,40 +91,13 @@ class Infile():
         with config.logfile.open(mode='a') as log:
             log.write(entry)
 
-    def parse(self, text):
-        """
-        TODO:
-        - [ ] implement images and links
-        - [ ] fix empty paragraphs (see comment at bottom)
-        - [ ] em dashes, ellipses and degree symbols should be valid HTML characters
-        - [ ] preserve umlaute
-        - [ ] paragraphs vs newlines (empty lines should separate paragraphs)
-        """
-        narrate("parse markdown…")
-        content = text
-        content = re.sub(r'--', r'&mdash;', content)
-        content = re.sub(r'__([^\n]+?)__', r'<strong>\1</strong>', content)
-        content = re.sub(r'_([^\n]+?)_', r'<em>\1</em>', content)
-        content = re.sub(r'^[-*] (.*?$)', r'<li>\1</li>', content, flags=re.M)
-        # this is a problem if there is more than one list in the source, in particular
-        # one "interrupted" by headlines, which will be matched due to the S flag (ignore newlines)
-        content = re.sub(r'(<li>.*</li>)(<h.>)*', r'<ul>\1</ul>', content, flags=re.S)
-        for i in range(6, 0, -1):
-            content = re.sub(
-                    r'^{} (.*?$)'.format('#' * i),
-                    r'<h{0}>\1</h{0}>'.format(i),
-                    content, flags=re.M)
-        content = re.sub(r'^(?!<[hlu])(.*?$)', r'<p>\1</p>', content, flags=re.M)
-        content = re.sub(r'<p></p>', r'', content) # why?
-        return content
-
     def publish(self):
         if self.source.suffix == '.md':
             # is this necessary? can't I just look for the first match in the string?
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
             self.title = self.headings[0]
             narrate(f'publish {self.title}…')
-            self.html = self.parse(self.contents)
+            self.html = parse(self.contents)
         else:
             self.html = self.contents
             self.title = self.source
@@ -249,4 +220,4 @@ if __name__ == '__main__':
         update(config.sourcedir)
     else:
         update(config.sourcedir, rebuild=True)
-    build_index()
+    # build_index()
