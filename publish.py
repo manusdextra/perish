@@ -96,7 +96,7 @@ class Infile():
             # is this necessary? can't I just look for the first match in the string?
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
             self.title = self.headings[0]
-            narrate(f'publish {self.title}…')
+            narrate(f'publish {self.filename}…')
             self.html = parse(self.contents)
         else:
             self.html = self.contents
@@ -118,6 +118,11 @@ class Infile():
             outfile.touch()
         outfile.write_text(output, encoding='utf-8')
         self.logwrite()
+
+        link = outfile.relative_to(config.destdir)
+        all_links.add(
+                f'\t<li><a href="/{link}">{self.title}</a></li>\n'
+                )
 
 
 def getargs():
@@ -144,12 +149,12 @@ def getargs():
 
 
 def update(directory, rebuild=False):
+    if rebuild:
+        narrate(f'rebuild directory "{directory.stem}"')
     for f in directory.iterdir():
         if f.is_dir():
-            update(f)
+            update(f, rebuild)
         else:
-            if f.name == 'index.md':
-                continue
             article = Infile(f)
             if rebuild:
                 article.publish()
@@ -172,28 +177,31 @@ def templates_ok():
         template = Infile(f)
         if template.source.suffix == '.css' and not template.published:
             shutil.copyfile(f, (config.destdir / f.name))
-            narrate('updated stylesheet.')
+            narrate('update stylesheet.')
             template.logwrite()
         if template.source.suffix == '.html' and not template.published:
-            narrate(f'updated {template.filename}')
+            narrate(f'update {template.filename}')
             untouched = False
             template.logwrite()
     return untouched
 
 
-def build_index():
+def build_index(directory):
     """
     TODO:
     - [ ] check for index page for each subfolder
     - [ ] if present, suffix .html list, else make it standalone
     """
-    narrate('build index…')
-    linklist = '<ul>\n'
-    for f in config.destdir.rglob('*.html'):
-        linklist += f'\t<li><a href="{f.relative_to(config.destdir)}" />{f.stem}</a></li>\n'
-    linklist += '\n</ul>'
-    i = config.sourcedir.joinpath('index.md')
-    index = Infile(i, index=linklist)
+    category = f'{directory.stem}'
+    narrate(f'build index for {category}…')
+    path = config.sourcedir / directory.stem / f'{category}.md'
+    linklist = f'<h2>{category.capitalize()}</h2>\n<ul>\n'
+    for link in all_links:
+        # this condition keeps the directoy's index page out of the index
+        if len(re.findall(category, link)) == 1:
+            linklist += link
+    linklist += '</ul>'
+    index = Infile(path, index=linklist)
     index.publish()
 
 def narrate(message):
@@ -213,11 +221,22 @@ def bail(error, fatal=False):
         sys.exit(1)
 
 if __name__ == '__main__':
+    """
+    TODO:
+    - [ ] if "rebuild" is set to false, the index is built without links.
+          these links are only generated when articles are published, so if
+          they're not updated, the list is empty.
+    """
     config = Config()
     args = getargs()
     all_categories = set()
+    all_links = set()
     if templates_ok():
         update(config.sourcedir)
+    if args.update:
+        update(config.sourcedir, rebuild=True)
     else:
         update(config.sourcedir, rebuild=True)
-    # build_index()
+    for d in config.destdir.iterdir():
+        if d.is_dir():
+            build_index(d)
