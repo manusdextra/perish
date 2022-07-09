@@ -4,12 +4,10 @@
 Static Site Generator.
 
 Goals:
-    - collect categories (maybe in Config class?)
     - automatically create index pages. This involves the categories collected
       and a place in the templates, potentially even some kind of jinja-like block
       system.
       (which needs to be properly documented)
-    - proper logger with levels of error messages
 """
 
 import argparse
