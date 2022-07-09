@@ -14,13 +14,17 @@ Goals:
 
 import argparse
 import hashlib
+import logging
+import logging.handlers
 import pathlib
-import shutil
-import time
-import sys
 import re
+import shutil
+import sys
+import time
+
 from parsec import parse
 
+log = logging.getLogger()
 
 class Config:
     """ 
@@ -40,6 +44,53 @@ class Config:
             self.sourcedir.mkdir(parents=True)
         if not self.destdir.exists():
             self.destdir.mkdir(parents=True)
+
+
+def setup_log(options):
+    """
+    Configure log
+    """
+    root = logging.getLogger("")
+    root.setLevel(logging.WARNING)
+    log.setLevel(options.debug and logging.DEBUG or logging.INFO)
+    if not options.silent:
+        custom_handler = logging.StreamHandler()
+        custom_handler.setFormatter(logging.Formatter(
+            "%(levelname)s\t[%(name)s]\t%(message)s"))
+        root.addHandler(custom_handler)
+
+def getargs():
+    """ 
+    process command line arguments 
+    """
+    parser = argparse.ArgumentParser(
+        description='Static Site Generator'
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        'infile',
+        nargs='?',
+        type=pathlib.Path,
+        help='publish only this file'
+    )
+    group.add_argument(
+        '-u', '--update',
+        action='store_true',
+        help='re-build pages and index'
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+            "-d", "--debug", action="store_true",
+            default=False,
+            help="enable debugging"
+    )
+    group.add_argument(
+            "-s", "--silent", action="store_true",
+            default=False,
+            help="don't log anything"
+    )
+    args = parser.parse_args()
+    return args
 
 
 class Infile():
@@ -96,7 +147,7 @@ class Infile():
             # is this necessary? can't I just look for the first match in the string?
             self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
             self.title = self.headings[0]
-            narrate(f'publish {self.filename}…')
+            log.debug(f'publish {self.filename}…')
             self.html = parse(self.contents)
         else:
             self.html = self.contents
@@ -122,35 +173,12 @@ class Infile():
         link = outfile.relative_to(config.destdir)
         all_links.add(
                 f'\t<li><a href="/{link}">{self.title}</a></li>\n'
-                )
-
-
-def getargs():
-    """ 
-    process command line arguments 
-    """
-    parser = argparse.ArgumentParser(
-        description='Static Site Generator'
-    )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        'infile',
-        nargs='?',
-        type=pathlib.Path,
-        help='publish only this file'
-    )
-    group.add_argument(
-        '-u', '--update',
-        action='store_true',
-        help='re-build pages and index'
-    )
-    args = parser.parse_args()
-    return args
+        )
 
 
 def update(directory, rebuild=False):
     if rebuild:
-        narrate(f'rebuild directory "{directory.stem}"')
+        log.debug(f'rebuild directory "{directory.stem}"')
     for f in directory.iterdir():
         if f.is_dir():
             update(f, rebuild)
@@ -163,24 +191,27 @@ def update(directory, rebuild=False):
 
 
 def templates_ok():
-    narrate('check if templates exist…')
+    log.debug('check if templates exist…')
     if not config.templatedir.exists():
-        bail('no templates found', fatal=True)
+        log.fatal('no templates found')
+        sys.exit(1)
     if not config.template_prefix.exists():
-        bail('prefix template not found', fatal=True)
+        log.fatal('prefix template not found')
+        sys.exit(1)
     if not config.template_suffix.exists():
-        bail('suffix template not found', fatal=True)
+        log.fatal('suffix template not found')
+        sys.exit(1)
 
     untouched = True
-    narrate('check if the templates have changed…')
+    log.debug('check if the templates have changed…')
     for f in config.templatedir.iterdir():
         template = Infile(f)
         if template.source.suffix == '.css' and not template.published:
             shutil.copyfile(f, (config.destdir / f.name))
-            narrate('update stylesheet.')
+            log.debug('update stylesheet.')
             template.logwrite()
         if template.source.suffix == '.html' and not template.published:
-            narrate(f'update {template.filename}')
+            log.debug(f'update {template.filename}')
             untouched = False
             template.logwrite()
     return untouched
@@ -193,7 +224,7 @@ def build_index(directory):
     - [ ] if present, suffix .html list, else make it standalone
     """
     category = f'{directory.stem}'
-    narrate(f'build index for {category}…')
+    log.debug(f'build index for {category}…')
     path = config.sourcedir / directory.stem / f'{category}.md'
     linklist = f'<h2>{category.capitalize()}</h2>\n<ul>\n'
     for link in all_links:
@@ -204,21 +235,6 @@ def build_index(directory):
     index = Infile(path, index=linklist)
     index.publish()
 
-def narrate(message):
-    """
-    Simple logger to console, to be fleshed out
-    """
-    print(f'…\t{message}')
-
-def bail(error, fatal=False):
-    """
-    Print error message and exit.
-    This needs fleshed out for minor and major errors. The "fatal" flag is just a
-    workaround.
-    """
-    print(f'ERROR:\t{error}\n')
-    if fatal:
-        sys.exit(1)
 
 if __name__ == '__main__':
     """
@@ -229,6 +245,7 @@ if __name__ == '__main__':
     """
     config = Config()
     args = getargs()
+    setup_log(args)
     all_categories = set()
     all_links = set()
     if input(f"\nReady to publish {config.rootdir} to {config.destdir}.\nPress Enter to continue."):
