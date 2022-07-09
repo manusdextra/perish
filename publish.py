@@ -27,7 +27,7 @@ class Config:
     check for existence of directories / files and create them if necessary
     """
     def __init__(self):
-        self.rootdir = pathlib.Path.cwd() # this would need to be changed to make the script portable
+        self.rootdir = pathlib.Path.cwd()
         self.logfile = self.rootdir / 'logfile'
         self.templatedir = self.rootdir / 'templates'
         self.template_prefix = self.rootdir / 'templates' / 'prefix.html'
@@ -231,6 +231,8 @@ if __name__ == '__main__':
     args = getargs()
     all_categories = set()
     all_links = set()
+    if input(f"\nReady to publish {config.rootdir} to {config.destdir}.\nPress Enter to continue."):
+        exit()
     if templates_ok():
         update(config.sourcedir)
     if args.update:
