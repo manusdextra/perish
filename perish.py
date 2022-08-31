@@ -134,18 +134,22 @@ class Infile():
 
 class Index():
     def __init__(self):
-        self.categories = set()
-        self.find_all_categories(config.sourcedir)
         self.files = set()
         self.find_all_files(config.sourcedir)
-        self.linklist = ""
-        self.build_index()
+        self.linklist = self.build_index(config.sourcedir)
 
-    def find_all_categories(self, directory):
-        for d in directory.iterdir():
-            if d.is_dir():
-                self.categories.add(d)
-                self.find_all_categories(d)
+    def build_index(self, path):
+        linklist = f'<ul>'
+        for node in path.iterdir():
+            if node.stem == "index":
+                link = f'<li><a href="/index.html">Home</a></li>\n'
+                linklist = re.sub(r'(\A<ul>)(.*)', r'\1%s\2' % link, linklist) 
+            elif node.is_dir():
+                linklist += f'<li><a href="/{node.stem}/{node.stem}.html">{node.stem.capitalize()}</a><li>\n'
+            elif not node.is_dir():
+                linklist += f'<li><a href="/{node.stem}.html">{node.stem.capitalize()}</a></li>\n'
+        linklist += f'</ul>'
+        return linklist
 
     def find_all_files(self, directory):
         for f in directory.iterdir():
@@ -153,16 +157,6 @@ class Index():
                 self.find_all_files(f)
             else:
                 self.files.add(Infile(f))
-
-    def build_index(self):
-        self.linklist += "<h1>Index</h1>\n"
-        for category in self.categories:
-            self.linklist += f'<h2>{category.stem.capitalize()}</h2>\n<ul>\n'
-        for file in self.files:
-            category = file.categories[-1].capitalize()
-            link = f'<li><a href="/{file.link}">{file.title}</a></li>\n'
-            self.linklist = re.sub(r"(<h2>%s</h2>\n<ul>\n)"%category, r"\1%s"%link, self.linklist)
-        self.linklist = re.sub(r"(</li>\n)(<h2>)", r"\1</ul>\n\2", self.linklist)
 
 
 if __name__ == '__main__':
