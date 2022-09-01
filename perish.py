@@ -122,11 +122,20 @@ class Infile():
             self.html = self.contents
             self.title = self.source
 
+        branches = None
+        if self.source.parent.stem == self.source.stem:
+            log.debug(f"\t{self.filename} is an index page")
+            # check if there are pages/folders beneath this page
+            parent = self.source.parent.stem
+            if index.categories.get(parent):
+                branches = index.categories[self.source.stem]
+
         # render template
         output = config.template.render(
                 content=self.html,
                 title=self.title,
-                index=index,
+                nav=index.navigation,
+                branches=branches,
         )
 
         # write to file
@@ -139,7 +148,8 @@ class Index():
     def __init__(self):
         self.files = set()
         self.find_all_files(config.sourcedir)
-        self.navigation = self.build_index(config.sourcedir)
+        self.navigation = self.build_nav()
+        self.categories = { f"{path.stem}": f"{self.build_index(path)}" for path in config.sourcedir.iterdir() if path.is_dir() }
 
     def find_all_files(self, path):
         for f in path.iterdir():
@@ -148,33 +158,42 @@ class Index():
             else:
                 self.files.add(Infile(f))
 
-    def build_index(self, path):
-        linklist = f'<ul>\n'
+    def build_nav(self):
+        linklist = '<ul>\n'
+        links = [
+                f'<li><a href="/{file.outfile.relative_to(config.destdir)}">{file.source.stem.capitalize()}</a></li>'
+                for file in self.files if file.source.parent == config.sourcedir
+                and not file.source.stem == "index"
+        ]
+        links.extend([
+            f'<li><a href="/{file.stem}/{file.stem}.html">{file.stem.capitalize()}</a></li>'
+            for file in config.sourcedir.iterdir() if file.is_dir()
+        ])
+        for link in links:
+            linklist += link
+        linklist += '</ul>\n'
+        # Does this need to be done manually?
+        link = f'\t<li><a href="/index.html">Home</a></li>\n'
+        linklist = re.sub(r'(\A<ul>\n)(.*)', r'\1%s\2' % link, linklist)
+        return linklist
+
+    def build_index(self, path, level=2):
+        linklist = f'<h{level}>{path.stem.capitalize()}</h{level}>\n<ul>\n'
         for node in path.iterdir():
             if node.stem == "index":
                 link = f'\t<li><a href="/index.html">Home</a></li>\n'
                 linklist = re.sub(r'(\A<ul>\n)(.*)', r'\1%s\2' % link, linklist)
             elif node.is_dir():
-                # this test here doesn't seem to work. I just want to check if this directory contains an eponymous "index" file
-                if pathlib.Path(f"{node}/{node.stem}.html"):
-                    linklist += f'\t<li><a href="/{node.stem}/{node.stem}.html">{node.stem.capitalize()}</a><li>\n'
+                linklist += self.build_index(node, level=level + 1)
             elif not node.is_dir():
-                linklist += f'\t<li><a href="/{node.stem}.html">{node.stem.capitalize()}</a></li>\n'
+                links = [
+                        f'\t<li><a href="/{file.outfile.relative_to(config.destdir)}">{file.title}</a></li>\n'
+                        for file in self.files if file.source.stem == node.stem
+                        and not file.source.stem == file.source.parent.stem
+                ]
+                for link in links:
+                    linklist += link
         linklist += f'</ul>\n'
-        return linklist
-
-    def prep_categories(self, path):
-        """
-        TODO:
-        - [ ] find a way to export these dynamically into those pages that need them,
-              possibly creating a blank page if necessary?
-        - [ ] is there a way to deduplicate the three methods in this class? They all do
-              aspects of the same thing after all
-        """
-        categories = { f"{path.stem.capitalize()}": f"{self.build_index(path)}" for path in path.iterdir() if path.is_dir() }
-        linklist = ""
-        for key, val in categories.items():
-            linklist += f'<h2>{key.capitalize()}</h2>\n{val}'
         return linklist
 
 if __name__ == '__main__':
@@ -183,4 +202,4 @@ if __name__ == '__main__':
     config = Config()
     index = Index()
     for file in index.files:
-        file.publish(index.navigation)
+        file.publish(index)
