@@ -18,28 +18,6 @@ from parsec import parse
 
 log = logging.getLogger()
 
-class Config:
-    """ 
-    check for existence of directories / files and create them if necessary
-    """
-    def __init__(self):
-        self.rootdir = pathlib.Path.cwd()
-        # Jinja stuff
-        env = Environment(
-                loader=FileSystemLoader("templates"),
-                autoescape=select_autoescape()
-        )
-        self.template = env.get_template("base.html")
-        self.sourcedir = self.rootdir / 'pages'
-        if not self.sourcedir.exists():
-            self.sourcedir.mkdir(parents=True)
-        self.destdir = pathlib.Path('/data/www')
-        if not self.destdir.exists():
-            self.destdir.mkdir(parents=True)
-        self.stylesheet = self.rootdir / 'templates' / 'style.css'
-        if self.stylesheet.exists():
-            shutil.copyfile(self.stylesheet, self.destdir / 'style.css')
-
 
 def setup_log(options):
     """
@@ -54,9 +32,10 @@ def setup_log(options):
             "%(levelname)s\t[%(name)s]\t%(message)s"))
         root.addHandler(custom_handler)
 
+
 def getargs():
-    """ 
-    process command line arguments 
+    """
+    process command line arguments
     """
     parser = argparse.ArgumentParser(
         description='Static Site Generator'
@@ -86,6 +65,30 @@ def getargs():
     )
     args = parser.parse_args()
     return args
+
+
+class Config:
+    """
+    check for existence of directories / files and create them if necessary
+    """
+    def __init__(self):
+        self.rootdir = pathlib.Path.cwd()
+        # Jinja stuff
+        env = Environment(
+                loader=FileSystemLoader("templates"),
+                autoescape=select_autoescape()
+        )
+        self.template = env.get_template("base.html")
+        self.sourcedir = self.rootdir / 'pages'
+        if not self.sourcedir.exists():
+            self.sourcedir.mkdir(parents=True)
+        self.destdir = pathlib.Path('/data/www')
+        if not self.destdir.exists():
+            self.destdir.mkdir(parents=True)
+        self.stylesheet = self.rootdir / 'templates' / 'style.css'
+        if self.stylesheet.exists():
+            log.debug("publish stylesheet…")
+            shutil.copyfile(self.stylesheet, self.destdir / 'style.css')
 
 
 class Infile():
@@ -136,33 +139,48 @@ class Index():
     def __init__(self):
         self.files = set()
         self.find_all_files(config.sourcedir)
-        self.linklist = self.build_index(config.sourcedir)
+        self.navigation = self.build_index(config.sourcedir)
 
-    def build_index(self, path):
-        linklist = f'<ul>'
-        for node in path.iterdir():
-            if node.stem == "index":
-                link = f'<li><a href="/index.html">Home</a></li>\n'
-                linklist = re.sub(r'(\A<ul>)(.*)', r'\1%s\2' % link, linklist) 
-            elif node.is_dir():
-                linklist += f'<li><a href="/{node.stem}/{node.stem}.html">{node.stem.capitalize()}</a><li>\n'
-            elif not node.is_dir():
-                linklist += f'<li><a href="/{node.stem}.html">{node.stem.capitalize()}</a></li>\n'
-        linklist += f'</ul>'
-        return linklist
-
-    def find_all_files(self, directory):
-        for f in directory.iterdir():
+    def find_all_files(self, path):
+        for f in path.iterdir():
             if f.is_dir():
                 self.find_all_files(f)
             else:
                 self.files.add(Infile(f))
 
+    def build_index(self, path):
+        linklist = f'<ul>\n'
+        for node in path.iterdir():
+            if node.stem == "index":
+                link = f'\t<li><a href="/index.html">Home</a></li>\n'
+                linklist = re.sub(r'(\A<ul>\n)(.*)', r'\1%s\2' % link, linklist)
+            elif node.is_dir():
+                # this test here doesn't seem to work. I just want to check if this directory contains an eponymous "index" file
+                if pathlib.Path(f"{node}/{node.stem}.html"):
+                    linklist += f'\t<li><a href="/{node.stem}/{node.stem}.html">{node.stem.capitalize()}</a><li>\n'
+            elif not node.is_dir():
+                linklist += f'\t<li><a href="/{node.stem}.html">{node.stem.capitalize()}</a></li>\n'
+        linklist += f'</ul>\n'
+        return linklist
+
+    def prep_categories(self, path):
+        """
+        TODO:
+        - [ ] find a way to export these dynamically into those pages that need them,
+              possibly creating a blank page if necessary?
+        - [ ] is there a way to deduplicate the three methods in this class? They all do
+              aspects of the same thing after all
+        """
+        categories = { f"{path.stem.capitalize()}": f"{self.build_index(path)}" for path in path.iterdir() if path.is_dir() }
+        linklist = ""
+        for key, val in categories.items():
+            linklist += f'<h2>{key.capitalize()}</h2>\n{val}'
+        return linklist
 
 if __name__ == '__main__':
-    config = Config()
     args = getargs()
     setup_log(args)
+    config = Config()
     index = Index()
     for file in index.files:
-        file.publish(index.linklist)
+        file.publish(index.navigation)
