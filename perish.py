@@ -97,9 +97,8 @@ class Infile():
         self.source = path
         self.filename = path.name
         with self.source.open() as f:
+            self.title = re.sub(r'(#.?)(.*)\n', r'\2', f.readline())
             self.contents = f.read()
-        self.headings = re.findall(r'#{1,6} (.*)\n', self.contents)
-        self.title = self.headings[0]
 
         # set up destination
         self.categories = [
@@ -116,7 +115,7 @@ class Infile():
     def publish(self, index):
         if self.source.suffix == '.md':
             # is this necessary? can't I just look for the first match in the string?
-            log.debug(f'publish {self.filename}…')
+            log.debug(f'publish {self.title}…')
             self.html = parse(self.contents)
         else:
             self.html = self.contents
