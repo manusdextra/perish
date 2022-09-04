@@ -156,25 +156,33 @@ class Index():
                 self.files.add(Infile(f))
 
     def build_nav(self):
-        linklist = '<ul>\n'
-        links = [
-                f'<li><a href="/{file.outfile.relative_to(config.staging)}">{file.source.stem.capitalize()}</a></li>'
-                for file in self.files if file.source.parent == config.sourcedir
-                and not file.source.stem == "index"
-        ]
+        """ This collects all files and directories in the top level of the source directory """
+        linklist = '\n<ul>\n'
+        links = []
         links.extend([
-            f'<li><a href="/{file.stem}/{file.stem}.html">{file.stem.capitalize()}</a></li>'
+            f'\t<li><a href="/index.html">Home</a></li>\n'
+        ])
+        links.extend([
+            f"""\t<li><a href="/{file.outfile.relative_to(config.staging)}">
+            {file.source.stem.capitalize()}</a></li>\n"""
+            for file in self.files if file.source.parent == config.sourcedir
+            and not file.source.stem == "index"
+        ])
+        links.extend([
+            f'\t<li><a href="/{file.stem}/{file.stem}.html">{file.stem.capitalize()}</a></li>\n'
             for file in config.sourcedir.iterdir() if file.is_dir()
         ])
         for link in links:
             linklist += link
         linklist += '</ul>\n'
-        # Does this need to be done manually?
-        link = f'\t<li><a href="/index.html">Home</a></li>\n'
-        linklist = re.sub(r'(\A<ul>\n)(.*)', r'\1%s\2' % link, linklist)
         return linklist
 
     def build_index(self, path, level=2):
+        """ 
+        this goes through the whole tree and collects all files.
+        ideally, I'd like to use this for any folder that should have
+        an index page.
+        """
         linklist = f'<h{level}>{path.stem.capitalize()}</h{level}>\n<ul>\n'
         for node in path.iterdir():
             if node.stem == "index":
@@ -184,9 +192,10 @@ class Index():
                 linklist += self.build_index(node, level=level + 1)
             elif not node.is_dir():
                 links = [
-                        f'\t<li><a href="/{file.outfile.relative_to(config.staging)}">{file.title}</a></li>\n'
-                        for file in self.files if file.source.stem == node.stem
-                        and not file.source.stem == file.source.parent.stem
+                    f"""\t<li><a href="/{file.outfile.relative_to(config.staging)}">
+                    {file.title}</a></li>\n"""
+                    for file in self.files if file.source.stem == node.stem
+                    and not file.source.stem == file.source.parent.stem
                 ]
                 for link in links:
                     linklist += link
