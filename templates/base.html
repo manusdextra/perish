@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>{{ title }}</title>
+    <meta content="{{ title }}" property="og:title" />
+    <meta content="" name="description" />
+    <meta content="" property="og:description" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      {% if nav %}
+      <div id="nav">{{ nav|safe }}</div>
+      {% endif %}
+    </header>
+    <hr id="start" />
+
+    <main>
+      <h1>{{ title }}</h1>
+      <article>{{ content|safe }}</article>
+      {% if branches %}
+      <div id="branches">{{ branches|safe }}</div>
+      {% endif %}
+    </main>
+
+    <hr id="end" />
+    <footer>
+      <p>
+        This site was statically generated using homemade scripts. Find out more
+        <a href="/about.html">here</a>.
+      </p>
+    </footer>
+  </body>
+</html>

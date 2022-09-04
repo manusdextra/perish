@@ -1,0 +1,121 @@
+:root {
+  font: 1rem sans-serif;
+  /* colours */
+  --blackish: #181414;
+  --darkgrey: #302828;
+  --lightgrey: #a89984;
+  --whiteish: #ebdbb2;
+  --darkred: #cc241d;
+  --lightred: #fb4934;
+  --darkgreen: #98971a;
+  --lightgreen: #b8bb26;
+  --darkyellow: #d79921;
+  --lightyellow: #fabd2f;
+  --darkblue: #458588;
+  --lightblue: #83a598;
+  --darkmagenta: #b16286;
+  --lightmagenta: #d3869b;
+  --darkcyan: #689d6a;
+  --lightcyan: #8ec07c;
+  --fullwidth: 100%;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --highlight: var(--lightmagenta);
+    --lowlight: var(--darkmagenta);
+    --visited: var(--darkblue);
+    --bg: var(--whiteish);
+    --fg: var(--blackish);
+    background-color: var(--bg);
+    color: var(--fg);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --highlight: var(--lightyellow);
+    --lowlight: var(--darkyellow);
+    --visited: var(--darkred);
+    --bg: var(--blackish);
+    --fg: var(--whiteish);
+    background-color: var(--bg);
+    color: var(--fg);
+  }
+}
+
+@media (min-width: 500px) {
+  :root {
+    --fullwidth: 35rem;
+  }
+}
+
+body {
+  display: flex;
+  flex-flow: column;
+  margin: 0 auto 0 auto;
+  /* this is important for the sticky footer */
+  height: 100vh;
+  width: var(--fullwidth);
+}
+
+header,
+footer,
+hr {
+  flex-shrink: 0;
+  width: var(--fullwidth);
+  margin: 0 auto 0 auto;
+  color: var(--fg);
+  padding: 0 1rem;
+}
+
+#nav > ul {
+  display: flex;
+  justify-content: flex-start;
+  list-style: none;
+  padding: 1rem 0;
+}
+
+#nav li {
+  padding: 0 2rem 0 0;
+}
+
+main {
+  flex-basis: 100%;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 1rem;
+}
+
+/* text styles */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 1rem 0;
+}
+h1 {
+  font-size: 1.5em;
+}
+
+a {
+  text-decoration: none;
+  color: var(--fg);
+}
+a:hover {
+  color: var(--highlight);
+}
+
+#nav a,
+footer a {
+  color: var(--lowlight);
+}
+#nav a:hover,
+footer a:hover {
+  color: var(--highlight);
+}
