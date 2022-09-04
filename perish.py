@@ -101,12 +101,9 @@ class Infile():
             self.contents = f.read()
 
         # set up destination
-        self.categories = [
-                x.stem for x
-                in self.source.relative_to(config.rootdir).parents[::-1]
-        ]
         self.destination = config.destdir.joinpath(
-                *self.categories[2::])
+                self.source.relative_to(config.sourcedir)
+        ).parent
         if not self.destination.exists():
             self.destination.mkdir(parents=True)
         self.outfile = self.destination.joinpath(self.source.stem).with_suffix('.html')
