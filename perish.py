@@ -5,6 +5,7 @@ Static Site Generator.
 
 """
 
+import os
 import argparse
 import logging
 import logging.handlers
@@ -48,9 +49,9 @@ def getargs():
         help='publish only this file'
     )
     group.add_argument(
-        '-u', '--update',
+        '-p', '--publish',
         action='store_true',
-        help='re-build pages and index'
+        help='push staging directory to public server'
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -82,13 +83,13 @@ class Config:
         self.sourcedir = self.rootdir / 'pages'
         if not self.sourcedir.exists():
             self.sourcedir.mkdir(parents=True)
-        self.destdir = pathlib.Path('/data/www')
-        if not self.destdir.exists():
-            self.destdir.mkdir(parents=True)
+        self.staging = pathlib.Path('/data/www')
+        if not self.staging.exists():
+            self.staging.mkdir(parents=True)
         self.stylesheet = self.rootdir / 'templates' / 'style.css'
         if self.stylesheet.exists():
             log.debug("publish stylesheet…")
-            shutil.copyfile(self.stylesheet, self.destdir / 'style.css')
+            shutil.copyfile(self.stylesheet, self.staging / 'style.css')
 
 
 class Infile():
@@ -101,13 +102,13 @@ class Infile():
             self.contents = f.read()
 
         # set up destination
-        self.destination = config.destdir.joinpath(
+        self.destination = config.staging.joinpath(
                 self.source.relative_to(config.sourcedir)
         ).parent
         if not self.destination.exists():
             self.destination.mkdir(parents=True)
         self.outfile = self.destination.joinpath(self.source.stem).with_suffix('.html')
-        self.link = self.outfile.relative_to(config.destdir)
+        self.link = self.outfile.relative_to(config.staging)
 
     def publish(self, index):
         if self.source.suffix == '.md':
@@ -157,7 +158,7 @@ class Index():
     def build_nav(self):
         linklist = '<ul>\n'
         links = [
-                f'<li><a href="/{file.outfile.relative_to(config.destdir)}">{file.source.stem.capitalize()}</a></li>'
+                f'<li><a href="/{file.outfile.relative_to(config.staging)}">{file.source.stem.capitalize()}</a></li>'
                 for file in self.files if file.source.parent == config.sourcedir
                 and not file.source.stem == "index"
         ]
@@ -183,7 +184,7 @@ class Index():
                 linklist += self.build_index(node, level=level + 1)
             elif not node.is_dir():
                 links = [
-                        f'\t<li><a href="/{file.outfile.relative_to(config.destdir)}">{file.title}</a></li>\n'
+                        f'\t<li><a href="/{file.outfile.relative_to(config.staging)}">{file.title}</a></li>\n'
                         for file in self.files if file.source.stem == node.stem
                         and not file.source.stem == file.source.parent.stem
                 ]
@@ -199,3 +200,6 @@ if __name__ == '__main__':
     index = Index()
     for file in index.files:
         file.publish(index)
+    if args.publish:
+        print("Handing off to publishing script…")
+        os.system('./publish')
