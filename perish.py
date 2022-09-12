@@ -157,25 +157,24 @@ class Index():
 
     def build_nav(self):
         """ This collects all files and directories in the top level of the source directory """
-        linklist = '\n<ul>\n'
         links = []
+        links.append({"href": "/index.html", "caption": "Home"})
         links.extend([
-            f'\t<li><a href="/index.html">Home</a></li>\n'
-        ])
-        links.extend([
-            f"""\t<li><a href="/{file.outfile.relative_to(config.staging)}">
-            {file.source.stem.capitalize()}</a></li>\n"""
+            {
+                "href": f"/{file.outfile.relative_to(config.staging)}",
+                "caption": f"{file.source.stem.capitalize()}"
+            }
             for file in self.files if file.source.parent == config.sourcedir
             and not file.source.stem == "index"
         ])
         links.extend([
-            f'\t<li><a href="/{file.stem}/{file.stem}.html">{file.stem.capitalize()}</a></li>\n'
+            {
+                "href": f'/{file.stem}/{file.stem}.html',
+                "caption": file.stem.capitalize()
+            }
             for file in config.sourcedir.iterdir() if file.is_dir()
         ])
-        for link in links:
-            linklist += link
-        linklist += '</ul>\n'
-        return linklist
+        return links
 
     def build_index(self, path, level=2):
         """ 

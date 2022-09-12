@@ -12,7 +12,13 @@
   <body>
     <header>
       {% if nav %}
-      <div id="nav">{{ nav|safe }}</div>
+      <div id="nav">
+        <ul>
+          {% for item in nav %}
+          <li><a href="{{ item.href }}">{{ item.caption }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
       {% endif %}
     </header>
     <hr id="start" />
