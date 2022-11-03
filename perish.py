@@ -12,6 +12,7 @@ import logging.handlers
 import pathlib
 import re
 import shutil
+from typing import Namespace
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -20,7 +21,7 @@ from parsec import parse
 log = logging.getLogger()
 
 
-def setup_log(options):
+def setup_log(options: Namespace) -> None:
     """
     Configure log
     """
@@ -35,7 +36,7 @@ def setup_log(options):
         root.addHandler(custom_handler)
 
 
-def getargs():
+def getargs() -> Namespace:
     """
     process command line arguments
     """
@@ -66,7 +67,7 @@ class Config:
     check for existence of directories / files and create them if necessary
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.rootdir = pathlib.Path.cwd()
         # Jinja stuff
         env = Environment(
@@ -86,7 +87,7 @@ class Config:
 
 
 class Infile:
-    def __init__(self, path):
+    def __init__(self, path: pathlib.Path) -> None:
         self.source = path
         self.filename = path.name
         with self.source.open() as f:
@@ -120,7 +121,7 @@ class Infile:
                 branches = index.categories[self.source.stem]
 
         # render template
-        output = config.template.render(
+        output: str = config.template.render(
             content=self.html,
             title=self.title,
             nav=index.navigation,
@@ -134,8 +135,8 @@ class Infile:
 
 
 class Index:
-    def __init__(self):
-        self.files = set()
+    def __init__(self) -> None:
+        self.files: set[Infile] = set()
         self.find_all_files(config.sourcedir)
         self.navigation = self.build_nav()
         self.categories = {
@@ -144,16 +145,16 @@ class Index:
             if path.is_dir()
         }
 
-    def find_all_files(self, path):
+    def find_all_files(self, path) -> None:
         for f in path.iterdir():
             if f.is_dir():
                 self.find_all_files(f)
             else:
                 self.files.add(Infile(f))
 
-    def build_nav(self):
+    def build_nav(self) -> list[dict[str, str]]:
         """This collects all files and directories in the top level of the source directory"""
-        links = []
+        links: list[dict[str, str]] = []
         links.append({"href": "/index.html", "caption": "Home"})
         links.extend(
             [
@@ -178,7 +179,7 @@ class Index:
         )
         return links
 
-    def build_index(self, path, level=2):
+    def build_index(self, path, level=2) -> str:
         """
         this goes through the whole tree and collects all files.
         ideally, I'd like to use this for any folder that should have
