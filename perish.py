@@ -12,7 +12,6 @@ import logging.handlers
 import pathlib
 import re
 import shutil
-from typing import Namespace
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -21,7 +20,7 @@ from parsec import parse
 log = logging.getLogger()
 
 
-def setup_log(options: Namespace) -> None:
+def setup_log(options) -> None:
     """
     Configure log
     """
@@ -36,7 +35,7 @@ def setup_log(options: Namespace) -> None:
         root.addHandler(custom_handler)
 
 
-def getargs() -> Namespace:
+def getargs():
     """
     process command line arguments
     """
