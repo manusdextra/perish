@@ -86,6 +86,11 @@ class Config:
 
 
 class Infile:
+    """
+    read markdown (or HTML) file and convert it if necessary,
+    insert into template and write to file
+    """
+
     def __init__(self, path: pathlib.Path) -> None:
         self.source = path
         self.filename = path.name
@@ -103,6 +108,10 @@ class Infile:
         self.link = self.outfile.relative_to(config.staging)
 
     def publish(self, index):
+        """
+        collate contents and index, insert into template and write to file
+        """
+
         if self.source.suffix == ".md":
             # is this necessary? can't I just look for the first match in the string?
             log.debug(f"publish {self.title}…")
@@ -134,6 +143,11 @@ class Infile:
 
 
 class Index:
+    """
+    traverse input directory to find folders representing categories
+    and build a list of links to be used as the index
+    """
+
     def __init__(self) -> None:
         self.files: set[Infile] = set()
         self.find_all_files(config.sourcedir)
@@ -145,6 +159,7 @@ class Index:
         }
 
     def find_all_files(self, path) -> None:
+        """take all files and create articles from them"""
         for f in path.iterdir():
             if f.is_dir():
                 self.find_all_files(f)
