@@ -57,8 +57,8 @@ def getargs():
     group.add_argument(
         "-s", "--silent", action="store_true", default=False, help="don't log anything"
     )
-    args = parser.parse_args()
-    return args
+    arguments = parser.parse_args()
+    return arguments
 
 
 class Config:
