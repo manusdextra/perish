@@ -202,7 +202,7 @@ class Index:
         linklist = f"<h{level}>{path.stem.capitalize()}</h{level}>\n<ul>\n"
         for node in path.iterdir():
             if node.stem == "index":
-                link = f'\t<li><a href="/index.html">Home</a></li>\n'
+                link = '\t<li><a href="/index.html">Home</a></li>\n'
                 linklist = re.sub(r"(\A<ul>\n)(.*)", r"\1%s\2" % link, linklist)
             elif node.is_dir():
                 linklist += self.build_index(node, level=level + 1)
@@ -216,7 +216,7 @@ class Index:
                 ]
                 for link in links:
                     linklist += link
-        linklist += f"</ul>\n"
+        linklist += "</ul>\n"
         return linklist
 
 
