@@ -25,9 +25,12 @@
 
     <main>
       <h1>{{ title }}</h1>
-      <article>{{ content|safe }}</article>
-      {% if branches %}
-      <div id="branches">{{ branches|safe }}</div>
+      {% if content %}
+      <section>
+        <article>{{ content|safe }}</article>
+      </section>
+      {% endif %} {% if branches %}
+      <section id="branches">{{ branches|safe }}</section>
       {% endif %}
     </main>
 

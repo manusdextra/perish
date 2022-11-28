@@ -1,5 +1,5 @@
 :root {
-  font: 1rem sans-serif;
+  font: 16px sans-serif;
   /* colours */
   --blackish: #181414;
   --darkgrey: #302828;
@@ -104,7 +104,7 @@ h1 {
 }
 
 a {
-  text-decoration: none;
+  text-decoration: underline;
   color: var(--fg);
 }
 a:hover {
