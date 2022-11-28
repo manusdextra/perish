@@ -114,7 +114,7 @@ class Infile:
 
         if self.source.suffix == ".md":
             # is this necessary? can't I just look for the first match in the string?
-            log.debug(f"publish {self.title}…")
+            log.debug("publish %s…", self.title)
             self.html = parse(self.contents)
         else:
             self.html = self.contents
@@ -122,7 +122,7 @@ class Infile:
 
         branches = None
         if self.source.parent.stem == self.source.stem:
-            log.debug(f"\t{self.filename} is an index page")
+            log.debug("\t%s is an index page", self.filename)
             # check if there are pages/folders beneath this page
             parent = self.source.parent.stem
             if index.categories.get(parent):
