@@ -97,6 +97,7 @@ class Infile:
         with self.source.open() as file:
             self.title = re.sub(r"(#.?)(.*)\n", r"\2", file.readline())
             self.contents = file.read()
+        self.html = parse(self.contents)
 
         # set up destination
         self.destination = config.staging.joinpath(
@@ -107,32 +108,25 @@ class Infile:
         self.outfile = self.destination.joinpath(self.source.stem).with_suffix(".html")
         self.link = self.outfile.relative_to(config.staging)
 
-    def publish(self, index):
+    def publish(self, linklist):
         """
         collate contents and index, insert into template and write to file
         """
-
-        if self.source.suffix == ".md":
-            # is this necessary? can't I just look for the first match in the string?
-            log.debug("publish %s…", self.title)
-            self.html = parse(self.contents)
-        else:
-            self.html = self.contents
-            self.title = self.source
+        log.debug("publish %s…", self.title)
 
         branches = None
         if self.source.parent.stem == self.source.stem:
             log.debug("\t%s is an index page", self.filename)
             # check if there are pages/folders beneath this page
             parent = self.source.parent.stem
-            if index.categories.get(parent):
-                branches = index.categories[self.source.stem]
+            if linklist.categories.get(parent):
+                branches = linklist.categories[self.source.stem]
 
         # render template
         output: str = config.template.render(
             content=self.html,
             title=self.title,
-            nav=index.navigation,
+            nav=linklist.navigation,
             branches=branches,
         )
 
