@@ -94,9 +94,9 @@ class Infile:
     def __init__(self, path: pathlib.Path) -> None:
         self.source = path
         self.filename = path.name
-        with self.source.open() as f:
-            self.title = re.sub(r"(#.?)(.*)\n", r"\2", f.readline())
-            self.contents = f.read()
+        with self.source.open() as file:
+            self.title = re.sub(r"(#.?)(.*)\n", r"\2", file.readline())
+            self.contents = file.read()
 
         # set up destination
         self.destination = config.staging.joinpath(
@@ -160,11 +160,11 @@ class Index:
 
     def find_all_files(self, path) -> None:
         """take all files and create articles from them"""
-        for f in path.iterdir():
-            if f.is_dir():
-                self.find_all_files(f)
+        for node in path.iterdir():
+            if node.is_dir():
+                self.find_all_files(node)
             else:
-                self.files.add(Infile(f))
+                self.files.add(Infile(node))
 
     def build_nav(self) -> list[dict[str, str]]:
         """This collects all files and directories in the top level of the source directory"""
@@ -225,8 +225,8 @@ if __name__ == "__main__":
     setup_log(args)
     config = Config()
     index = Index()
-    for file in index.files:
-        file.publish(index)
+    for article in index.files:
+        article.publish(index)
     if args.publish:
         print("Handing off to publishing script…")
         os.system("./publish")
