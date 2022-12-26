@@ -193,13 +193,22 @@ class Index:
         )
         return links
 
+    def make_title(self, string) -> str:
+        """
+        Replaces hyphens with spaces and capitalises
+        """
+        string = string.split("-")
+        string = [string[0].upper() + string[1::] + " " for string in string]
+        string = "".join(string)
+        return string
+
     def build_index(self, path, level=2) -> str:
         """
         this goes through the whole tree and collects all files.
         ideally, I'd like to use this for any folder that should have
         an index page.
         """
-        linklist = f"<h{level}>{path.stem.capitalize()}</h{level}>\n<ul>\n"
+        linklist = f"<h{level}>{self.make_title(path.stem)}</h{level}>\n<ul>\n"
         for node in path.iterdir():
             if node.stem == "index":
                 link = '\t<li><a href="/index.html">Home</a></li>\n'
