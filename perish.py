@@ -7,7 +7,6 @@ Static Site Generator.
 
 import argparse
 import logging
-import logging.handlers
 import os
 import pathlib
 import re
@@ -167,6 +166,7 @@ class Index:
             if node.is_dir():
                 self.find_all_files(node)
             else:
+                # TODO this can be improved, extracted into a function even.
                 if not node.name == "template.html" and not node.name == "style.css":
                     self.files.add(Infile(node))
 
