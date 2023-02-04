@@ -5,15 +5,16 @@ Static Site Generator.
 
 """
 
-import os
 import argparse
 import logging
 import logging.handlers
+import os
 import pathlib
 import re
 import shutil
+import sys
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
 
 from parsec import parse
 
@@ -42,7 +43,11 @@ def getargs():
     parser = argparse.ArgumentParser(description="Static Site Generator")
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "infile", nargs="?", type=pathlib.Path, help="publish only this file"
+        "directory",
+        nargs="?",
+        type=pathlib.Path,
+        help="the directory to be published",
+        default=pathlib.Path.cwd(),
     )
     group.add_argument(
         "-p",
@@ -66,20 +71,24 @@ class Config:
     check for existence of directories / files and create them if necessary
     """
 
-    def __init__(self) -> None:
-        self.rootdir = pathlib.Path.cwd()
+    def __init__(self, args) -> None:
+        self.sourcedir = args.directory.absolute()
         # Jinja stuff
         env = Environment(
-            loader=FileSystemLoader("templates"), autoescape=select_autoescape()
+            loader=FileSystemLoader(self.sourcedir),
+            autoescape=select_autoescape(),
         )
-        self.template = env.get_template("base.html")
-        self.sourcedir = self.rootdir / "pages"
+        try:
+            self.template = env.get_template("template.html")
+        except TemplateNotFound:
+            log.critical(f"No template found in {self.sourcedir}")
+            sys.exit(1)
         if not self.sourcedir.exists():
             self.sourcedir.mkdir(parents=True)
         self.staging = pathlib.Path("/data/www")
         if not self.staging.exists():
             self.staging.mkdir(parents=True)
-        self.stylesheet = self.rootdir / "templates" / "style.css"
+        self.stylesheet = self.sourcedir / "style.css"
         if self.stylesheet.exists():
             log.debug("publish stylesheet…")
             shutil.copyfile(self.stylesheet, self.staging / "style.css")
@@ -142,7 +151,7 @@ class Index:
     and build a list of links to be used as the index
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config) -> None:
         self.files: set[Infile] = set()
         self.find_all_files(config.sourcedir)
         self.navigation = self.build_nav()
@@ -158,7 +167,8 @@ class Index:
             if node.is_dir():
                 self.find_all_files(node)
             else:
-                self.files.add(Infile(node))
+                if not node.name == "template.html" and not node.name == "style.css":
+                    self.files.add(Infile(node))
 
     def build_nav(self) -> list[dict[str, str]]:
         """This collects all files and directories in the top level of the source directory"""
@@ -226,10 +236,11 @@ class Index:
 if __name__ == "__main__":
     args = getargs()
     setup_log(args)
-    config = Config()
-    index = Index()
+    log.debug(f"publish directory {args.directory.absolute()}")
+    config = Config(args)
+    index = Index(config)
     for article in index.files:
         article.publish(index)
     if args.publish:
         print("Handing off to publishing script…")
-        os.system("./publish")
+        os.system(config.sourcedir / "publish")

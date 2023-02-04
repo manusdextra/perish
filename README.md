@@ -12,8 +12,10 @@ Finally, I had been reading about lightweight, minimalistic web design, and the 
 
 ## Usage
 
-By default, this script works within the directory it is located. Here, it expects the following:
+The script expects a directory (either $PWD or any other passed as a command line argument) which includes at minimum:
 
-- a folder named "templates" which contains "base.html" (a Jinja2 template) and "style.css"
-  (in future, I may add defaults for these)
-- a folder named "pages" which contains—at a minimum—an index.md file, as well as any number (theoretically) of folders
+- index.md
+- template.html (a Jinja2 teplate)
+- style.css
+
+You can add to this folder any number of .md files or subfolders, which by default will be rendered as pages linked to in the nav (if they're in the root directory) or linked to in the (automatically generated) index page of the folder they're contained in.
