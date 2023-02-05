@@ -6,11 +6,12 @@ Static Site Generator.
 """
 
 import argparse
+from datetime import datetime
 import logging
-import os
 import pathlib
 import re
 import shutil
+import subprocess
 import sys
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
@@ -71,10 +72,35 @@ class Config:
     """
 
     def __init__(self, args) -> None:
-        self.sourcedir = args.directory.absolute()
+        self.rootdir = args.directory.absolute()
+
+        # source directory
+        self.sourcedir = self.rootdir / "pages"
+        if not self.sourcedir.exists():
+            self.sourcedir.mkdir(parents=True)
+        log.debug(f"use {self.sourcedir} as source directory")
+
+        # staging directory and git repository
+        self.staging = self.rootdir / "output"
+        if not self.staging.exists():
+            self.staging.mkdir(parents=True)
+        else:
+            if args.publish and not (self.staging / ".git").exists():
+                log.debug(f"no git repo found in {self.staging}")
+                sys.exit(1)
+        log.debug(f"use {self.staging} as staging directory")
+
+        # stylesheet
+        self.stylesheet = self.rootdir / "templates" / "style.css"
+        if self.stylesheet.exists():
+            log.debug("publish stylesheet…")
+            shutil.copyfile(self.stylesheet, self.staging / "style.css")
+        else:
+            log.critical(f"no stylesheet found in {self.stylesheet}")
+
         # Jinja stuff
         env = Environment(
-            loader=FileSystemLoader(self.sourcedir),
+            loader=FileSystemLoader(self.rootdir / "templates"),
             autoescape=select_autoescape(),
         )
         try:
@@ -82,15 +108,6 @@ class Config:
         except TemplateNotFound:
             log.critical(f"No template found in {self.sourcedir}")
             sys.exit(1)
-        if not self.sourcedir.exists():
-            self.sourcedir.mkdir(parents=True)
-        self.staging = pathlib.Path("/data/www")
-        if not self.staging.exists():
-            self.staging.mkdir(parents=True)
-        self.stylesheet = self.sourcedir / "style.css"
-        if self.stylesheet.exists():
-            log.debug("publish stylesheet…")
-            shutil.copyfile(self.stylesheet, self.staging / "style.css")
 
 
 class Infile:
@@ -103,7 +120,10 @@ class Infile:
         self.source = path
         self.filename = path.name
         with self.source.open() as file:
-            self.title = re.sub(r"(#.?)(.*)\n", r"\2", file.readline())
+            try:
+                self.title = re.sub(r"(#.?)(.*)\n", r"\2", file.readline())
+            except Exception as e:
+                log.critical(f"Problem with {file}: {e}")
             self.contents = file.read()
         self.html = parse(self.contents)
 
@@ -124,7 +144,7 @@ class Infile:
 
         branches = None
         if self.source.parent.stem == self.source.stem:
-            log.debug("\t%s is an index page", self.filename)
+            log.debug("\tadd index to %s", self.filename)
             # check if there are pages/folders beneath this page
             parent = self.source.parent.stem
             if linklist.categories.get(parent):
@@ -236,11 +256,18 @@ class Index:
 if __name__ == "__main__":
     args = getargs()
     setup_log(args)
-    log.debug(f"publish directory {args.directory.absolute()}")
     config = Config(args)
     index = Index(config)
     for article in index.files:
         article.publish(index)
     if args.publish:
-        print("Handing off to publishing script…")
-        os.system(config.sourcedir / "publish")
+        log.debug(f"push staging directory {config.staging} to remote…")
+        subprocess.run(
+            ["/usr/bin/git", "add", "."], cwd=config.staging
+        )
+        subprocess.run(
+            ["/usr/bin/git", "commit", "-m", str(datetime.utcnow())], cwd=config.staging
+        )
+        subprocess.run(
+            ["/usr/bin/git", "push", "-f"], cwd=config.staging
+        )

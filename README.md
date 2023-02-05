@@ -14,8 +14,11 @@ Finally, I had been reading about lightweight, minimalistic web design, and the 
 
 The script expects a directory (either $PWD or any other passed as a command line argument) which includes at minimum:
 
-- index.md
-- template.html (a Jinja2 teplate)
-- style.css
+- a "pages" directory containing index.md and whatever else you want
 
 You can add to this folder any number of .md files or subfolders, which by default will be rendered as pages linked to in the nav (if they're in the root directory) or linked to in the (automatically generated) index page of the folder they're contained in.
+
+- a "templates" directory containg template.html (a Jinja2 teplate) and style.css
+- an "output" directory
+
+By default, the output directory is a git repository which is used to push the finished website to my server. However, you can use any other method (such as rsync) to publish this staging directory.
