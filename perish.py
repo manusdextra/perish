@@ -27,7 +27,7 @@ def setup_log(options) -> None:
     """
     root = logging.getLogger("")
     root.setLevel(logging.WARNING)
-    log.setLevel(options.debug and logging.DEBUG or logging.INFO)
+    log.setLevel(options.verbose and logging.DEBUG or logging.INFO)
     if not options.silent:
         custom_handler = logging.StreamHandler()
         custom_handler.setFormatter(
@@ -57,7 +57,7 @@ def getargs():
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "-d", "--debug", action="store_true", default=False, help="enable debugging"
+        "-v", "--verbose", action="store_true", default=False, help="enable logging"
     )
     group.add_argument(
         "-s", "--silent", action="store_true", default=False, help="don't log anything"
