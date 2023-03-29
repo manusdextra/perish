@@ -262,12 +262,8 @@ if __name__ == "__main__":
         article.publish(index)
     if args.publish:
         log.debug(f"push staging directory {config.staging} to remote…")
-        subprocess.run(
-            ["/usr/bin/git", "add", "."], cwd=config.staging
-        )
+        subprocess.run(["/usr/bin/git", "add", "."], cwd=config.staging)
         subprocess.run(
             ["/usr/bin/git", "commit", "-m", str(datetime.utcnow())], cwd=config.staging
         )
-        subprocess.run(
-            ["/usr/bin/git", "push", "-f"], cwd=config.staging
-        )
+        subprocess.run(["/usr/bin/git", "push", "-f"], cwd=config.staging)
