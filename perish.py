@@ -193,7 +193,6 @@ class Index:
     def build_nav(self) -> list[dict[str, str]]:
         """This collects all files and directories in the top level of the source directory"""
         links: list[dict[str, str]] = []
-        links.append({"href": "/index.html", "caption": "Home"})
         links.extend(
             [
                 {
