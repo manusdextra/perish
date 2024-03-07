@@ -77,7 +77,8 @@ class Config:
         # source directory
         self.sourcedir = self.rootdir / "pages"
         if not self.sourcedir.exists():
-            self.sourcedir.mkdir(parents=True)
+            log.fatal(f"no 'pages' folder found in {self.rootdir}, aborting")
+            sys.exit(1)
         log.debug(f"use {self.sourcedir} as source directory")
 
         # staging directory and git repository
