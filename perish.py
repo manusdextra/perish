@@ -216,6 +216,7 @@ class Index:
                 if file.is_dir()
             ]
         )
+        links = sorted(links, key=lambda x: x["caption"])
         return links
 
     def make_title(self, string) -> str:
