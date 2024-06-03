@@ -192,7 +192,8 @@ class Index:
                     self.files.add(Infile(node))
 
     def build_nav(self) -> list[dict[str, str]]:
-        """This collects all files and directories in the top level of the source directory"""
+        """This collects all files and directories in the top level of the source directory
+        TODO: document the why of using links.extend()"""
         links: list[dict[str, str]] = []
         links.extend(
             [
