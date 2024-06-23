@@ -6,7 +6,7 @@ Static Site Generator.
 """
 
 import argparse
-from datetime import datetime
+import datetime
 import logging
 import pathlib
 import re
@@ -266,6 +266,7 @@ if __name__ == "__main__":
         log.debug(f"push staging directory {config.staging} to remote…")
         subprocess.run(["/usr/bin/git", "add", "."], cwd=config.staging)
         subprocess.run(
-            ["/usr/bin/git", "commit", "-m", str(datetime.utcnow())], cwd=config.staging
+            ["/usr/bin/git", "commit", "-m", str(datetime.datetime.now(datetime.UTC))],
+            cwd=config.staging,
         )
         subprocess.run(["/usr/bin/git", "push", "-f"], cwd=config.staging)
