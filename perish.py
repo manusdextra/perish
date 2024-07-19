@@ -14,7 +14,8 @@ import shutil
 import subprocess
 import sys
 
-from jinja2 import Environment, FileSystemLoader, TemplateNotFound, select_autoescape
+from jinja2 import (Environment, FileSystemLoader, TemplateNotFound,
+                    select_autoescape)
 
 from parsec import parse
 
