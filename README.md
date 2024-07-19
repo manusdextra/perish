@@ -10,6 +10,14 @@ Another reason for going with Python is the _re_ library. When writing the shell
 
 Finally, I had been reading about lightweight, minimalistic web design, and the idea appealed to me, so I wanted to use this opportunity to write a simple site using only barebones HTML and CSS, utilising the Jinja2 templating language I am starting to get familiar with through using it as part of Flask and Ansible. I figure it might also be a good testing ground for various accessibility optimizations and best practices I read about online.
 
+## TODOs
+
+- [ ] implement links to pages and directories within the source tree
+- [ ] add photos (and the required processing)
+- [ ] re-think the deployment method (a git repo may not be appropriate for images)
+- [ ] add a now page
+- [ ] format the link list and think about having a proper sitemap
+
 ## Usage
 
 The script expects a directory (either $PWD or any other passed as a command line argument) which includes at minimum:
