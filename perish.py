@@ -182,15 +182,23 @@ class Index:
             if path.is_dir()
         }
 
+    def is_valid_node(self, path) -> None:
+        invalid_patterns = [
+            "template.html",
+            "style.css",
+            ".git",
+        ]
+        return path not in invalid_patterns
+
     def find_all_files(self, path) -> None:
         """take all files and create articles from them"""
         for node in path.iterdir():
+            if not self.is_valid_node(node.name):
+                continue
             if node.is_dir():
                 self.find_all_files(node)
             else:
-                # TODO this can be improved, extracted into a function even.
-                if not node.name == "template.html" and not node.name == "style.css":
-                    self.files.add(Infile(node))
+                self.files.add(Infile(node))
 
     def build_nav(self) -> list[dict[str, str]]:
         """This collects all files and directories in the top level of the source directory
@@ -214,7 +222,7 @@ class Index:
                     "caption": file.stem.capitalize(),
                 }
                 for file in config.sourcedir.iterdir()
-                if file.is_dir()
+                if file.is_dir() and self.is_valid_node(file.name)
             ]
         )
         links = sorted(links, key=lambda x: x["caption"])
@@ -265,9 +273,14 @@ if __name__ == "__main__":
         article.publish(index)
     if args.publish:
         log.debug(f"push staging directory {config.staging} to remote…")
-        subprocess.run(["/usr/bin/git", "add", "."], cwd=config.staging)
         subprocess.run(
-            ["/usr/bin/git", "commit", "-m", str(datetime.datetime.now(datetime.UTC))],
+            [
+                "rsync",
+                "-av",
+                ".",
+                "henning@manusdextra.com:/usr/share/nginx/html",
+                "--exclude=.git",
+                "--delete",
+            ],
             cwd=config.staging,
         )
-        subprocess.run(["/usr/bin/git", "push", "-f"], cwd=config.staging)
