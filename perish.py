@@ -239,7 +239,9 @@ class Index:
         ideally, I'd like to use this for any folder that should have
         an index page.
         """
-        linklist = f"<h{level}>{self.make_title(path.stem)}</h{level}>\n<ul>\n"
+        heading = f"<h{level}>{self.make_title(path.stem)}</h{level}>\n<ul>\n"
+        linklist = heading
+
         for node in path.iterdir():
             if node.stem == "index":
                 link = '\t<li><a href="/index.html">Home</a></li>\n'
@@ -256,6 +258,12 @@ class Index:
                 ]
                 for link in links:
                     linklist += link
+
+        # If nothing has been added, foobar.md is the only file in foobar
+        # and the linklist isn't necessary
+        if linklist == heading:
+            return ""
+
         linklist += "</ul>\n"
         return linklist
 
