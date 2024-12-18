@@ -14,6 +14,7 @@ def parse(markdown):
     content = re.sub(r"--", r"&mdash;", content)
     content = re.sub(r"__([^\n]+?)__", r"<strong>\1</strong>", content)
     content = re.sub(r"_([^\n]+?)_", r"<em>\1</em>", content)
+    content = re.sub(r"\[([^\n]+?)\]\(([^\n]+?)\)", r"""<a href="\1">\2</a>""", content)
     content = re.sub(r"^[-*] (.*?$)", r"<li>\1</li>", content, flags=re.M)
     # this is a problem if there is more than one list in the source, in particular
     # one "interrupted" by headlines, which will be matched due to the S flag (ignore newlines)

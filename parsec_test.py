@@ -12,6 +12,11 @@ class TestMarkdownParser(unittest.TestCase):
             "<p>I don't know&mdash;but I can guess</p>",
         )
 
+    def test_links(self):
+        self.assertEqual(
+            parse("[https://google.com](Google)"),
+            "<p><a href=\"https://google.com\">Google</a></p>"
+        )
     def test_umlaut(self):
         self.assertEqual(parse("Deine Mütter stinken"), "<p>Deine Mütter stinken</p>")
 
