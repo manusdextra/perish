@@ -12,11 +12,11 @@ Finally, I had been reading about lightweight, minimalistic web design, and the 
 
 ## TODOs
 
+- [x] add a now page
+- [x] re-think the deployment method (a git repo may not be appropriate for images)
+- [ ] think about how to implement a proper sitemap
 - [ ] implement links to pages and directories within the source tree
 - [ ] add photos (and the required processing)
-- [ ] re-think the deployment method (a git repo may not be appropriate for images)
-- [ ] add a now page
-- [ ] format the link list and think about having a proper sitemap
 
 ## Usage
 
@@ -29,4 +29,4 @@ You can add to this folder any number of .md files or subfolders, which by defau
 - a "templates" directory containing template.html and style.css
 - an "output" directory
 
-By default, the output directory is a git repository which is used to push the finished website to my server via a post-receive hook. However, you can use any other method (such as rsync) to publish this staging directory.
+This "output" directory can then be published (for example using `rsync`) to your webservers root directory.
