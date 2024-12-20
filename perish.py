@@ -42,15 +42,14 @@ def getargs():
     process command line arguments
     """
     parser = argparse.ArgumentParser(description="Static Site Generator")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
+    parser.add_argument(
         "directory",
         nargs="?",
         type=pathlib.Path,
         help="the directory to be published",
         default=pathlib.Path.cwd(),
     )
-    group.add_argument(
+    parser.add_argument(
         "-p",
         "--publish",
         action="store_true",
@@ -73,7 +72,11 @@ class Config:
     """
 
     def __init__(self, args) -> None:
+        # current working directory by default
         self.rootdir = args.directory.absolute()
+        # the command may be run from the pages directory as well
+        if self.rootdir.stem == "pages":
+            self.rootdir = self.rootdir.parent
 
         # source directory
         self.sourcedir = self.rootdir / "pages"
